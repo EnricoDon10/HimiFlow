@@ -134,3 +134,24 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Build outputs
+**/bin/
+**/obj/
+
+# Angular / Node
+**/node_modules/
+**/.angular/
+**/dist/
+
+# Local databases
+*.db
+*.db-shm
+*.db-wal
+
+# VS Code / Visual Studio local files
+.vs/
+.vscode/*.user
+
+# Logs
+*.log

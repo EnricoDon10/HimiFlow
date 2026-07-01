@@ -1,3 +1,4 @@
+﻿using System.Security.Claims;
 using Einsparungs.Api.Data;
 using Einsparungs.Api.DTOs;
 using Einsparungs.Api.Security;
@@ -68,7 +69,13 @@ public class AuthController : ControllerBase
         var userId = User.FindFirst("userId")?.Value;
         var userName = User.FindFirst("userName")?.Value;
         var displayName = User.FindFirst("displayName")?.Value;
-        var roles = User.FindAll("role").Select(x => x.Value).ToList();
+
+        var roles = User.FindAll(ClaimTypes.Role)
+            .Select(x => x.Value)
+            .Union(User.FindAll("role").Select(x => x.Value))
+            .Distinct()
+            .OrderBy(x => x)
+            .ToList();
 
         return Ok(new
         {

@@ -12,8 +12,8 @@ import { AuthService } from '../../core/services/auth.service';
   styleUrl: './login.component.scss'
 })
 export class LoginComponent {
-  userName = 'mitarbeiter1';
-  password = 'Demo123!';
+  userName = '';
+  password = '';
 
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -48,3 +48,5 @@ export class LoginComponent {
     });
   }
 }
+
+

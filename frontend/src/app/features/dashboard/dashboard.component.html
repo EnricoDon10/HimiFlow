@@ -1,34 +1,82 @@
-﻿<section class="page-header">
+﻿<section class="dashboard-header">
   <p>Dashboard</p>
-  <h1>Willkommen, {{ user()?.displayName }}</h1>
+  <h1>Willkommen, {{ getDisplayName() }}</h1>
 </section>
 
-<section class="cards">
-  <article class="card">
-    <span class="label">Benutzer</span>
-    <strong>{{ user()?.userName }}</strong>
+<section class="status-grid">
+  <article class="status-card">
+    <span>Benutzer</span>
+    <strong>{{ getUsername() }}</strong>
   </article>
 
-  <article class="card">
-    <span class="label">Rolle</span>
-    <strong>{{ user()?.roles?.join(', ') }}</strong>
+  <article class="status-card">
+    <span>Alle Datensätze</span>
+    <strong>{{ canViewAllSavings() ? 'Erlaubt' : 'Nicht erlaubt' }}</strong>
   </article>
 
-  <article class="card">
-    <span class="label">Alle Datensätze</span>
-    <strong>{{ canSeeAllSavings() ? 'Erlaubt' : 'Nicht erlaubt' }}</strong>
-  </article>
-
-  <article class="card">
-    <span class="label">Export</span>
+  <article class="status-card">
+    <span>Export</span>
     <strong>{{ canExport() ? 'Erlaubt' : 'Nicht erlaubt' }}</strong>
   </article>
 </section>
 
-<section class="info-card">
-  <h2>Nächste Schritte</h2>
-  <p>
-    Die Navigation und die Rollenlogik sind jetzt im Frontend vorbereitet.
-    Im nächsten Schritt verbinden wir die erste Fachseite mit der Backend-API.
-  </p>
+<section class="quick-action-card" routerLink="/savings/new">
+  <div class="quick-action-icon">+</div>
+
+  <div>
+    <p>Schnellaktion</p>
+    <h2>Einsparung erfassen</h2>
+    <span>Direkt zur Erfassungsmaske springen und einen neuen Einsparungsdatensatz anlegen.</span>
+  </div>
+
+  <strong>Öffnen</strong>
 </section>
+
+<section class="monthly-chart-card">
+  <div class="chart-header">
+    <div>
+      <p>Statistik</p>
+      <h2>Ersparnis nach Monat</h2>
+      <span>Monatliche Gesamtersparnis als Säulendiagramm.</span>
+    </div>
+
+    <button type="button" (click)="loadMonthlyStatistics()">Aktualisieren</button>
+  </div>
+
+  @if (statisticsErrorMessage()) {
+    <div class="message error">
+      {{ statisticsErrorMessage() }}
+    </div>
+  }
+
+  @if (isLoadingStatistics()) {
+    <div class="state-box">
+      Monatsstatistik wird geladen...
+    </div>
+  } @else if (monthlyStatistics().length === 0) {
+    <div class="state-box">
+      Noch keine Monatsdaten vorhanden.
+    </div>
+  } @else {
+    <div class="column-chart">
+      @for (item of monthlyStatistics(); track $index) {
+        <div class="column-item">
+          <strong class="column-value">{{ formatMoney(getMonthlyAmount(item)) }}</strong>
+
+          <div class="column-track">
+            <div
+              class="column-fill"
+              [style.height.%]="getColumnHeight(getMonthlyAmount(item))"
+            ></div>
+          </div>
+
+          <div class="column-label">
+            <strong>{{ getMonthlyLabel(item) }}</strong>
+            <span>{{ getMonthlyCount(item) }} Datensätze</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</section>
+

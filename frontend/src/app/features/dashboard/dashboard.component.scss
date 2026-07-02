@@ -1,66 +1,254 @@
-﻿.page-header {
+﻿.dashboard-header {
   margin-bottom: 1.5rem;
 
   p {
-    margin: 0 0 0.3rem;
+    margin: 0 0 0.35rem;
     color: #2563eb;
-    font-weight: 800;
+    font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
   }
 
   h1 {
     margin: 0;
-    font-size: 2rem;
-    color: #0f172a;
+    color: #020617;
+    font-size: 2.1rem;
   }
 }
 
-.cards {
+.status-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
   margin-bottom: 1.5rem;
 }
 
-.card,
-.info-card {
+.status-card,
+.quick-action-card,
+.monthly-chart-card {
   background: #ffffff;
   border-radius: 1.25rem;
   box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
-  padding: 1.25rem;
 }
 
-.label {
-  display: block;
-  color: #64748b;
-  margin-bottom: 0.5rem;
+.status-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1.5rem;
+
+  span {
+    color: #64748b;
+    font-size: 1rem;
+  }
+
+  strong {
+    color: #020617;
+    font-size: 1.2rem;
+  }
 }
 
-.card strong {
-  color: #0f172a;
-  font-size: 1.1rem;
-}
+.quick-action-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 
-.info-card {
-  h2 {
-    margin-top: 0;
+  &:hover {
+    transform: translateY(-2px);
+    border-color: #2563eb;
+    box-shadow: 0 1.2rem 3rem rgba(37, 99, 235, 0.16);
   }
 
   p {
-    color: #475569;
-    line-height: 1.6;
+    margin: 0 0 0.25rem;
+    color: #2563eb;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  h2 {
+    margin: 0 0 0.35rem;
+    color: #020617;
+  }
+
+  span {
+    color: #64748b;
+  }
+
+  > strong {
+    border-radius: 0.9rem;
+    background: #2563eb;
+    color: #ffffff;
+    padding: 0.85rem 1.1rem;
   }
 }
 
-@media (max-width: 1100px) {
-  .cards {
+.quick-action-icon {
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 1rem;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.monthly-chart-card {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  p {
+    margin: 0 0 0.25rem;
+    color: #2563eb;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  h2 {
+    margin: 0 0 0.35rem;
+    color: #020617;
+  }
+
+  span {
+    color: #64748b;
+  }
+
+  button {
+    border: 0;
+    border-radius: 0.85rem;
+    background: #020617;
+    color: #ffffff;
+    padding: 0.8rem 1rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+}
+
+.column-chart {
+  min-height: 22rem;
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 1rem 0.25rem 0;
+}
+
+.column-item {
+  min-width: 8rem;
+  height: 20rem;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.75rem;
+  justify-items: center;
+}
+
+.column-value {
+  color: #166534;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.column-track {
+  width: 4rem;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 999px 999px 0.8rem 0.8rem;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.column-fill {
+  width: 100%;
+  min-height: 0.5rem;
+  border-radius: 999px 999px 0.8rem 0.8rem;
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+}
+
+.column-label {
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  text-align: center;
+
+  strong {
+    color: #020617;
+  }
+
+  span {
+    color: #64748b;
+    font-size: 0.85rem;
+  }
+}
+
+.message,
+.state-box {
+  font-weight: 800;
+}
+
+.message {
+  margin-bottom: 1rem;
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.message.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.state-box {
+  border-radius: 1rem;
+  background: #f8fafc;
+  color: #64748b;
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+
+@media (max-width: 1050px) {
+  .status-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 650px) {
-  .cards {
+@media (max-width: 750px) {
+  .status-grid {
     grid-template-columns: 1fr;
   }
+
+  .quick-action-card {
+    grid-template-columns: 1fr;
+
+    > strong {
+      text-align: center;
+    }
+  }
+
+  .chart-header {
+    display: grid;
+
+    button {
+      width: 100%;
+    }
+  }
 }
+
+

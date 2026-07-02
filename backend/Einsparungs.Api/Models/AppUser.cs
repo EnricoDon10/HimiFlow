@@ -27,4 +27,8 @@ public class AppUser
 
     public ICollection<AppUserRole> UserRoles { get; set; } = new List<AppUserRole>();
     public ICollection<SavingsEntry> CreatedSavingsEntries { get; set; } = new List<SavingsEntry>();
-}
+
+    public bool IsDeleted { get; set; }
+
+    public DateTime? DeletedAt { get; set; }}
+

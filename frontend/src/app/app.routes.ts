@@ -40,7 +40,13 @@ export const routes: Routes = [
         data: {
           roles: ['Fuehrungskraft', 'Admin']
         }
+      },      {
+        path: 'admin/users',
+        canActivate: [roleGuard],
+        data: { roles: ['Admin'] },
+        loadComponent: () => import('./features/admin/user-management/user-management.component').then((m) => m.UserManagementComponent)
       },
+
       {
         path: 'statistics',
         component: StatisticsComponent
@@ -57,3 +63,4 @@ export const routes: Routes = [
     redirectTo: 'login'
   }
 ];
+

@@ -18,6 +18,12 @@
       }
 
       <a routerLink="/statistics" routerLinkActive="active">Statistik</a>
+
+        @if (isAdmin()) {
+          <a routerLink="/admin/users" routerLinkActive="active">
+            Benutzerverwaltung
+          </a>
+        }
     </nav>
     
   </aside>
@@ -37,3 +43,5 @@
     </main>
   </section>
 </div>
+
+

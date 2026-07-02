@@ -1,0 +1,169 @@
+﻿<section class="page-header">
+  <div>
+    <p>Administration</p>
+    <h1>Benutzerverwaltung</h1>
+    <span>Benutzer anlegen, löschen und Passwörter zurücksetzen.</span>
+  </div>
+
+  <button type="button" (click)="loadUsers()">Aktualisieren</button>
+</section>
+
+@if (errorMessage()) {
+  <section class="message error">
+    {{ errorMessage() }}
+  </section>
+}
+
+@if (successMessage()) {
+  <section class="message success">
+    {{ successMessage() }}
+  </section>
+}
+
+@if (resetPasswordMessage()) {
+  <section class="message warning">
+    {{ resetPasswordMessage() }}
+  </section>
+}
+
+<section class="create-card">
+  <div class="card-header">
+    <p>Neuer Benutzer</p>
+    <h2>Benutzer anlegen</h2>
+  </div>
+
+  <form class="create-form" (ngSubmit)="createUser()">
+    <div class="form-grid">
+      <label>
+        Benutzername
+        <input
+          type="text"
+          name="userName"
+          [(ngModel)]="userName"
+          placeholder="z. B. enrico.mancuso"
+          autocomplete="off"
+        />
+      </label>
+
+      <label>
+        Anzeigename
+        <input
+          type="text"
+          name="displayName"
+          [(ngModel)]="displayName"
+          placeholder="z. B. Enrico Mancuso"
+          autocomplete="off"
+        />
+      </label>
+
+      <label>
+        Passwort
+        <input
+          type="text"
+          name="password"
+          [(ngModel)]="password"
+          autocomplete="new-password"
+        />
+      </label>
+
+      <label>
+        Rolle
+        <select
+          name="roleName"
+          [(ngModel)]="roleName"
+          (ngModelChange)="onRoleChanged()"
+        >
+          @for (role of roles; track role.value) {
+            <option [ngValue]="role.value">{{ role.label }}</option>
+          }
+        </select>
+      </label>
+
+      @if (roleName !== 'Admin') {
+        <label>
+          Team
+          <select name="teamId" [(ngModel)]="teamId">
+            @for (team of teams(); track team.id) {
+              <option [ngValue]="team.id">{{ team.displayName }}</option>
+            }
+          </select>
+        </label>
+      }
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="isCreating()">
+        {{ isCreating() ? 'Benutzer wird angelegt...' : 'Benutzer anlegen' }}
+      </button>
+    </div>
+  </form>
+</section>
+
+<section class="table-card">
+  <div class="card-header">
+    <p>Bestand</p>
+    <h2>Alle Benutzer</h2>
+  </div>
+
+  @if (isLoading()) {
+    <div class="state-box">
+      Benutzer werden geladen...
+    </div>
+  } @else if (users().length === 0) {
+    <div class="state-box">
+      Keine Benutzer vorhanden.
+    </div>
+  } @else {
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Benutzername</th>
+            <th>Name</th>
+            <th>Rolle</th>
+            <th>Team</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (user of users(); track user.id) {
+            <tr>
+              <td>{{ user.userName }}</td>
+              <td>
+                <strong>{{ user.displayName }}</strong>
+              </td>
+              <td>
+                <span class="role-badge" [class]="getRoleBadgeClass(user.roleName)">
+                  {{ user.roleName }}
+                </span>
+              </td>
+              <td>{{ user.teamDisplayName || '-' }}</td>
+              <td>
+                <div class="row-actions">
+                  <button
+                    type="button"
+                    class="reset-button"
+                    (click)="resetPassword(user)"
+                    [disabled]="resettingUserId() === user.id"
+                  >
+                    {{ resettingUserId() === user.id ? 'Setzt zurück...' : 'Passwort zurücksetzen' }}
+                  </button>
+
+                  <button
+                    type="button"
+                    class="delete-button"
+                    (click)="deleteUser(user)"
+                    [disabled]="deletingUserId() === user.id"
+                  >
+                    {{ deletingUserId() === user.id ? 'Löscht...' : 'Löschen' }}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

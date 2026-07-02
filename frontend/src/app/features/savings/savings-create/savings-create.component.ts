@@ -46,6 +46,51 @@ export class SavingsCreateComponent implements OnInit {
     this.recalculateSavingAmount();
   }
 
+  preventInvalidKvnrKey(event: KeyboardEvent): void {
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.key.length !== 1
+    ) {
+      return;
+    }
+
+    const input = event.target as HTMLInputElement;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? start;
+    const hasSelection = end > start;
+
+    if (input.value.length >= 10 && !hasSelection) {
+      event.preventDefault();
+      return;
+    }
+
+    if (start === 0) {
+      const isLetter = /^[a-zA-Z]$/.test(event.key);
+
+      if (!isLetter) {
+        event.preventDefault();
+      }
+
+      return;
+    }
+
+    const isDigit = /^[0-9]$/.test(event.key);
+
+    if (!isDigit) {
+      event.preventDefault();
+    }
+  }
+
+  onKvnrInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const maskedValue = this.maskKvnr(input.value);
+
+    input.value = maskedValue;
+    this.kvnr = maskedValue;
+  }
+
   onOldKvAmountChanged(value: string | number | null): void {
     this.oldKvAmount = this.toNumber(value);
     this.recalculateSavingAmount();
@@ -157,8 +202,8 @@ export class SavingsCreateComponent implements OnInit {
       return 'Bitte KVNR eingeben.';
     }
 
-    if (this.kvnr.trim().length !== 10) {
-      return 'KVNR muss genau 10 Zeichen haben.';
+    if (!/^[A-Z][0-9]{9}$/.test(this.kvnr.trim())) {
+      return 'KVNR muss aus einem Großbuchstaben und genau 9 Ziffern bestehen.';
     }
 
     if (Number(this.oldKvAmount ?? 0) < 0) {
@@ -186,6 +231,27 @@ export class SavingsCreateComponent implements OnInit {
     }
 
     return null;
+  }
+
+  private maskKvnr(value: string): string {
+    const rawValue = String(value ?? '').toUpperCase();
+    let result = '';
+
+    for (const character of rawValue) {
+      if (result.length === 0) {
+        if (/^[A-Z]$/.test(character)) {
+          result += character;
+        }
+
+        continue;
+      }
+
+      if (result.length < 10 && /^[0-9]$/.test(character)) {
+        result += character;
+      }
+    }
+
+    return result.slice(0, 10);
   }
 
   private extractErrorMessage(error: unknown): string {

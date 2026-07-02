@@ -34,15 +34,20 @@
         </label>
 
         <label>
-          KVNR
-          <input
-            type="text"
-            name="kvnr"
-            maxlength="10"
-            [(ngModel)]="kvnr"
-            placeholder="z. B. A123456789"
-          />
-        </label>
+  KVNR
+  <input
+    type="text"
+    name="kvnr"
+    maxlength="10"
+    [ngModel]="kvnr"
+    (keydown)="preventInvalidKvnrKey($event)"
+    (input)="onKvnrInput($event)"
+    placeholder="z. B. A123456789"
+    pattern="[A-Z][0-9]{9}"
+    inputmode="text"
+    autocomplete="off"
+  />
+</label>
 
         <label>
           Alter KV
@@ -159,3 +164,5 @@
     </section>
   }
 }
+
+

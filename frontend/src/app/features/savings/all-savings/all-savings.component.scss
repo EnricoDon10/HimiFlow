@@ -1,0 +1,23 @@
+﻿.placeholder {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
+  padding: 2rem;
+
+  p {
+    margin: 0 0 0.3rem;
+    color: #2563eb;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  h1 {
+    margin: 0 0 0.75rem;
+    color: #0f172a;
+  }
+
+  span {
+    color: #64748b;
+  }
+}

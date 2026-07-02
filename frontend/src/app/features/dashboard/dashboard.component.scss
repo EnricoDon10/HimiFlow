@@ -1,66 +1,66 @@
-﻿.shell {
-  min-height: 100vh;
-  background: #f8fafc;
-}
-
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  background: #0f172a;
-  color: #ffffff;
-  padding: 1.25rem 2rem;
-
-  h1 {
-    margin: 0 0 0.25rem;
-  }
+﻿.page-header {
+  margin-bottom: 1.5rem;
 
   p {
+    margin: 0 0 0.3rem;
+    color: #2563eb;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  h1 {
     margin: 0;
-    color: #cbd5e1;
-  }
-
-  button {
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    background: transparent;
-    color: #ffffff;
-    border-radius: 0.75rem;
-    padding: 0.7rem 1rem;
-    cursor: pointer;
+    font-size: 2rem;
+    color: #0f172a;
   }
 }
 
-.content {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: 2rem;
+.cards {
   display: grid;
-  gap: 1.5rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
-.card {
+.card,
+.info-card {
   background: #ffffff;
   border-radius: 1.25rem;
   box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
-  padding: 1.5rem;
+  padding: 1.25rem;
+}
 
+.label {
+  display: block;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+}
+
+.card strong {
+  color: #0f172a;
+  font-size: 1.1rem;
+}
+
+.info-card {
   h2 {
     margin-top: 0;
   }
+
+  p {
+    color: #475569;
+    line-height: 1.6;
+  }
 }
 
-dl {
-  display: grid;
-  gap: 1rem;
+@media (max-width: 1100px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-dt {
-  color: #64748b;
-  font-weight: 700;
-}
-
-dd {
-  margin: 0.25rem 0 0;
-  color: #0f172a;
+@media (max-width: 650px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
 }

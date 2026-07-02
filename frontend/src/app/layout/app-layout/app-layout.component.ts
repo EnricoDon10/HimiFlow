@@ -1,16 +1,18 @@
 ﻿import { CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 
 @Component({
-  selector: 'app-dashboard',
+  selector: 'app-layout',
   standalone: true,
-  imports: [CommonModule],
-  templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.scss'
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  templateUrl: './app-layout.component.html',
+  styleUrl: './app-layout.component.scss'
 })
-export class DashboardComponent {
+export class AppLayoutComponent {
   private readonly authService = inject(AuthService);
+  private readonly router = inject(Router);
 
   readonly user = this.authService.currentUser;
 
@@ -20,5 +22,10 @@ export class DashboardComponent {
 
   canExport(): boolean {
     return this.authService.canExport();
+  }
+
+  logout(): void {
+    this.authService.logout();
+    this.router.navigateByUrl('/login');
   }
 }

@@ -44,7 +44,7 @@ export class AuthService {
   }
 
   isLoggedIn(): boolean {
-    return !!this.getToken();
+    return !!this.getToken() && !!this.currentUser();
   }
 
   hasRole(role: string): boolean {

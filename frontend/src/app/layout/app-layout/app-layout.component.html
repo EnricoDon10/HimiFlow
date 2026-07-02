@@ -1,0 +1,45 @@
+﻿<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">€</span>
+      <div>
+        <strong>Einsparungsdatenbank</strong>
+        <small>Prototyp</small>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+      <a routerLink="/savings/new" routerLinkActive="active">Einsparung erfassen</a>
+      <a routerLink="/savings/my" routerLinkActive="active">Meine Einsparungen</a>
+
+      @if (canSeeAllSavings()) {
+        <a routerLink="/savings/all" routerLinkActive="active">Alle Einsparungen</a>
+      }
+
+      <a routerLink="/statistics" routerLinkActive="active">Statistik</a>
+    </nav>
+
+    @if (canExport()) {
+      <div class="permission-box">
+        <strong>Export berechtigt</strong>
+        <span>CSV und Excel später verfügbar</span>
+      </div>
+    }
+  </aside>
+
+  <section class="main-area">
+    <header class="topbar">
+      <div>
+        <strong>{{ user()?.displayName }}</strong>
+        <span>{{ user()?.roles?.join(', ') }}</span>
+      </div>
+
+      <button type="button" (click)="logout()">Abmelden</button>
+    </header>
+
+    <main class="page-content">
+      <router-outlet></router-outlet>
+    </main>
+  </section>
+</div>

@@ -1,8 +1,9 @@
-﻿.placeholder {
-  background: #ffffff;
-  border-radius: 1.25rem;
-  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
-  padding: 2rem;
+﻿.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 
   p {
     margin: 0 0 0.3rem;
@@ -13,11 +14,304 @@
   }
 
   h1 {
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.4rem;
+    color: #0f172a;
+    font-size: 2rem;
+  }
+
+  span {
+    color: #64748b;
+  }
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+
+  button {
+    border: 0;
+    border-radius: 0.8rem;
+    padding: 0.8rem 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    background: #0f172a;
+    color: #ffffff;
+  }
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card,
+.table-card,
+.message,
+.edit-card {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
+  padding: 1.25rem;
+}
+
+.summary-card {
+  display: grid;
+  gap: 0.4rem;
+
+  span {
+    color: #64748b;
+    font-weight: 700;
+  }
+
+  strong {
+    color: #0f172a;
+    font-size: 1.5rem;
+  }
+}
+
+.message {
+  margin-bottom: 1.5rem;
+  font-weight: 800;
+}
+
+.message.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.message.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.edit-card {
+  margin-bottom: 1.5rem;
+  border: 1px solid #bfdbfe;
+}
+
+.edit-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+
+  p {
+    margin: 0 0 0.3rem;
+    color: #2563eb;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  h2 {
+    margin: 0 0 0.4rem;
     color: #0f172a;
   }
 
   span {
     color: #64748b;
+  }
+}
+
+.edit-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.product-group-area {
+  display: grid;
+  gap: 1rem;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}
+
+label {
+  display: grid;
+  gap: 0.45rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.8rem;
+  padding: 0.8rem 0.9rem;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+input:focus,
+select:focus {
+  outline: 3px solid rgba(37, 99, 235, 0.18);
+  border-color: #2563eb;
+}
+
+.calculation-box {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.25rem;
+
+  span {
+    color: #1d4ed8;
+    font-weight: 700;
+  }
+
+  strong {
+    color: #0f172a;
+    font-size: 2rem;
+  }
+
+  small {
+    color: #475569;
+  }
+}
+
+.edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+button {
+  border: 0;
+  border-radius: 0.8rem;
+  padding: 0.75rem 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.secondary-button,
+.edit-actions button[type='submit'] {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.ghost-button {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 95rem;
+}
+
+th,
+td {
+  padding: 0.9rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+td {
+  color: #0f172a;
+}
+
+tbody tr:hover {
+  background: #f8fafc;
+}
+
+.row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.edit-button {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.delete-button {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.kvnr {
+  display: inline-flex;
+  border-radius: 0.6rem;
+  background: #e0f2fe;
+  color: #075985;
+  padding: 0.25rem 0.5rem;
+  font-weight: 800;
+}
+
+.saving {
+  color: #166534;
+}
+
+.state-box,
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+
+  h2 {
+    margin: 0;
+    color: #0f172a;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+@media (max-width: 850px) {
+  .page-header,
+  .edit-header {
+    display: grid;
+  }
+
+  .summary-grid,
+  .form-grid,
+  .search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .edit-actions {
+    display: grid;
   }
 }

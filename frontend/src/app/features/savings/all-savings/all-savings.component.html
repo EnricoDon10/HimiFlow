@@ -1,5 +1,239 @@
-﻿<section class="placeholder">
-  <p>Führungskraft / Admin</p>
-  <h1>Alle Einsparungen</h1>
-  <span>Diese Seite verbindet sich später mit GET /api/savings/all.</span>
+﻿<section class="page-header">
+  <div>
+    <p>Führungskraft / Admin</p>
+    <h1>Alle Einsparungen</h1>
+    <span>Hier sehen Sie alle Einsparungsdatensätze aller Benutzer.</span>
+  </div>
+
+  <div class="header-actions">
+    <button type="button" (click)="loadAllSavings()">Aktualisieren</button>
+  </div>
+</section>
+
+@if (errorMessage()) {
+  <section class="message error">
+    {{ errorMessage() }}
+  </section>
+}
+
+@if (successMessage()) {
+  <section class="message success">
+    {{ successMessage() }}
+  </section>
+}
+
+@if (editingEntry()) {
+  <section class="edit-card">
+    <div class="edit-header">
+      <div>
+        <p>Bearbeitung</p>
+        <h2>Datensatz bearbeiten</h2>
+        <span>
+          KVNR {{ editingEntry()?.kvnr }} von {{ editingEntry()?.createdByDisplayName }} wird bearbeitet.
+        </span>
+      </div>
+
+      <button type="button" class="ghost-button" (click)="cancelEdit()">Abbrechen</button>
+    </div>
+
+    <form class="edit-form" (ngSubmit)="saveEdit()">
+      <div class="form-grid">
+        <label>
+          Monat
+          <input
+            type="month"
+            name="editMonth"
+            [(ngModel)]="editMonth"
+          />
+        </label>
+
+        <label>
+          KVNR
+          <input
+            type="text"
+            name="editKvnr"
+            maxlength="10"
+            [ngModel]="editKvnr"
+            (keydown)="preventInvalidKvnrKey($event)"
+            (input)="onEditKvnrInput($event)"
+            placeholder="z. B. A123456789"
+            pattern="[A-Z][0-9]{9}"
+            inputmode="text"
+            autocomplete="off"
+          />
+        </label>
+
+        <label>
+          Alter KV
+          <input
+            type="number"
+            name="editOldKvAmount"
+            min="0"
+            step="0.01"
+            [ngModel]="editOldKvAmount"
+            (ngModelChange)="onEditOldKvAmountChanged($event)"
+          />
+        </label>
+
+        <label>
+          Neuer KV
+          <input
+            type="number"
+            name="editNewKvAmount"
+            min="0"
+            step="0.01"
+            [ngModel]="editNewKvAmount"
+            (ngModelChange)="onEditNewKvAmountChanged($event)"
+          />
+        </label>
+
+        <label>
+          Team
+          <select name="editTeamId" [(ngModel)]="editTeamId">
+            @for (team of teams(); track team.id) {
+              <option [ngValue]="team.id">{{ team.displayName }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Einspargrund
+          <select name="editSavingReasonId" [(ngModel)]="editSavingReasonId">
+            @for (reason of savingReasons(); track reason.id) {
+              <option [ngValue]="reason.id">{{ reason.name }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <div class="product-group-area">
+        <label>
+          Produktgruppe suchen
+          <div class="search-row">
+            <input
+              type="text"
+              name="editProductGroupSearch"
+              [(ngModel)]="editProductGroupSearch"
+              placeholder="z. B. Rollstuhl"
+            />
+
+            <button type="button" class="secondary-button" (click)="searchEditProductGroups()">
+              Suchen
+            </button>
+          </div>
+        </label>
+
+        <label>
+          Produktgruppe
+          <select name="editProductGroupId" [(ngModel)]="editProductGroupId">
+            @for (productGroup of productGroups(); track productGroup.id) {
+              <option [ngValue]="productGroup.id">{{ productGroup.displayValue }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <aside class="calculation-box">
+        <span>Berechnete Ersparnis</span>
+        <strong>{{ formatMoney(editCalculatedSavingAmount) }}</strong>
+        <small>Formel: Alter KV - Neuer KV</small>
+      </aside>
+
+      <div class="edit-actions">
+        <button type="button" class="ghost-button" (click)="cancelEdit()">Abbrechen</button>
+        <button type="submit" [disabled]="isSavingEdit()">
+          {{ isSavingEdit() ? 'Speichern läuft...' : 'Änderungen speichern' }}
+        </button>
+      </div>
+    </form>
+  </section>
+}
+
+<section class="summary-grid">
+  <article class="summary-card">
+    <span>Anzahl Datensätze</span>
+    <strong>{{ savingsEntries().length }}</strong>
+  </article>
+
+  <article class="summary-card">
+    <span>Gesamtersparnis</span>
+    <strong>{{ formatMoney(getTotalSavingAmount()) }}</strong>
+  </article>
+
+  <article class="summary-card">
+    <span>Durchschnitt</span>
+    <strong>{{ formatMoney(getAverageSavingAmount()) }}</strong>
+  </article>
+</section>
+
+<section class="table-card">
+  @if (isLoading()) {
+    <div class="state-box">
+      Alle Einsparungen werden geladen...
+    </div>
+  } @else if (savingsEntries().length === 0) {
+    <div class="empty-state">
+      <h2>Keine Einsparungen vorhanden</h2>
+      <p>Es wurden bisher keine Einsparungsdatensätze erfasst.</p>
+    </div>
+  } @else {
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Aktionen</th>
+            <th>Monat</th>
+            <th>KVNR</th>
+            <th>Alter KV</th>
+            <th>Neuer KV</th>
+            <th>Ersparnis</th>
+            <th>Team</th>
+            <th>Einspargrund</th>
+            <th>Produktgruppe</th>
+            <th>Erfasst von</th>
+            <th>Erstellt am</th>
+            <th>Version</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (entry of savingsEntries(); track entry.id) {
+            <tr>
+              <td>
+                <div class="row-actions">
+                  <button type="button" class="edit-button" (click)="startEdit(entry)">
+                    Bearbeiten
+                  </button>
+
+                  <button
+                    type="button"
+                    class="delete-button"
+                    (click)="deleteEntry(entry)"
+                    [disabled]="deletingEntryId() === entry.id"
+                  >
+                    {{ deletingEntryId() === entry.id ? 'Löscht...' : 'Löschen' }}
+                  </button>
+                </div>
+              </td>
+              <td>{{ formatMonth(entry.month) }}</td>
+              <td>
+                <span class="kvnr">{{ entry.kvnr }}</span>
+              </td>
+              <td>{{ formatMoney(entry.oldKvAmount) }}</td>
+              <td>{{ formatMoney(entry.newKvAmount) }}</td>
+              <td>
+                <strong class="saving">{{ formatMoney(entry.savingAmount) }}</strong>
+              </td>
+              <td>{{ entry.teamName }}</td>
+              <td>{{ entry.savingReasonName }}</td>
+              <td>{{ entry.productGroupDisplayValue }}</td>
+              <td>{{ entry.createdByDisplayName }}</td>
+              <td>{{ formatDateTime(entry.createdAt) }}</td>
+              <td>{{ entry.version }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 </section>

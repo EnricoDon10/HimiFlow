@@ -1,0 +1,47 @@
+﻿<div class="shell">
+  <header class="topbar">
+    <div>
+      <h1>Einsparungsdatenbank</h1>
+      <p>Backend-Verbindung und Login funktionieren.</p>
+    </div>
+
+    <button type="button" (click)="logout()">Abmelden</button>
+  </header>
+
+  <main class="content">
+    <section class="card">
+      <h2>Willkommen</h2>
+
+      @if (user()) {
+        <dl>
+          <div>
+            <dt>Benutzer</dt>
+            <dd>{{ user()?.displayName }}</dd>
+          </div>
+
+          <div>
+            <dt>Login-Name</dt>
+            <dd>{{ user()?.userName }}</dd>
+          </div>
+
+          <div>
+            <dt>Rolle</dt>
+            <dd>{{ user()?.roles?.join(', ') }}</dd>
+          </div>
+        </dl>
+      }
+    </section>
+
+    <section class="card">
+      <h2>Nächste Frontend-Bausteine</h2>
+
+      <ul>
+        <li>Einsparung erfassen</li>
+        <li>Eigene Einsparungen anzeigen</li>
+        <li>Alle Einsparungen für Führungskraft/Admin anzeigen</li>
+        <li>Statistikseite</li>
+        <li>Export-Buttons für Führungskraft/Admin</li>
+      </ul>
+    </section>
+  </main>
+</div>

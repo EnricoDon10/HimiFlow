@@ -1,0 +1,47 @@
+﻿<div class="login-page">
+  <section class="login-card">
+    <div class="login-header">
+      <h1>Einsparungsdatenbank</h1>
+      <p>Bitte melden Sie sich mit Ihrem Demo-Benutzer an.</p>
+    </div>
+
+    <form (ngSubmit)="login()" class="login-form">
+      <label>
+        Benutzername
+        <input
+          name="userName"
+          type="text"
+          [(ngModel)]="userName"
+          autocomplete="username"
+        />
+      </label>
+
+      <label>
+        Passwort
+        <input
+          name="password"
+          type="password"
+          [(ngModel)]="password"
+          autocomplete="current-password"
+        />
+      </label>
+
+      @if (errorMessage()) {
+        <div class="error-message">
+          {{ errorMessage() }}
+        </div>
+      }
+
+      <button type="submit" [disabled]="isLoading()">
+        {{ isLoading() ? 'Anmeldung läuft...' : 'Anmelden' }}
+      </button>
+    </form>
+
+    <div class="demo-users">
+      <strong>Demo-Benutzer</strong>
+      <span>mitarbeiter1 / Demo123!</span>
+      <span>teamleiter / Demo123!</span>
+      <span>admin / Demo123!</span>
+    </div>
+  </section>
+</div>

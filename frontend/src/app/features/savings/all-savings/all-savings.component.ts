@@ -1,10 +1,11 @@
 ﻿import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Observable } from 'rxjs';
 import { ProductGroup, SavingReason, Team } from '../../../core/models/master-data.model';
 import { SavingsEntryResponse } from '../../../core/models/savings-entry.model';
 import { MasterDataService } from '../../../core/services/master-data.service';
+import { ExportsService } from '../../../core/services/exports.service';
 import { SavingsService } from '../../../core/services/savings.service';
 
 @Component({
@@ -22,6 +23,7 @@ export class AllSavingsComponent implements OnInit {
 
   readonly isLoading = signal(false);
   readonly isSavingEdit = signal(false);
+  readonly isExporting = signal(false);
   readonly deletingEntryId = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
@@ -39,7 +41,8 @@ export class AllSavingsComponent implements OnInit {
 
   constructor(
     private readonly savingsService: SavingsService,
-    private readonly masterDataService: MasterDataService
+    private readonly masterDataService: MasterDataService,
+    private readonly exportsService: ExportsService
   ) {}
 
   ngOnInit(): void {
@@ -84,6 +87,65 @@ export class AllSavingsComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
+
+  downloadCsv(): void {
+    this.downloadExport('csv');
+  }
+
+  downloadExcel(): void {
+    this.downloadExport('xlsx');
+  }
+
+  private downloadExport(fileType: 'csv' | 'xlsx'): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.isExporting.set(true);
+
+    const exportRequest: Observable<Blob> = fileType === 'csv'
+      ? this.exportsService.downloadSavingsCsv()
+      : this.exportsService.downloadSavingsExcel();
+
+    exportRequest.subscribe({
+      next: (blob: Blob) => {
+        const fileName = `einsparungen_${this.getCurrentDateStamp()}.${fileType}`;
+        this.saveBlob(blob, fileName);
+
+        this.successMessage.set(
+          fileType === 'csv'
+            ? 'CSV-Export wurde erfolgreich erstellt.'
+            : 'Excel-Export wurde erfolgreich erstellt.'
+        );
+
+        this.isExporting.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('Export konnte nicht erstellt werden. Bitte Berechtigung und Backend prüfen.');
+        this.isExporting.set(false);
+      }
+    });
+  }
+
+  private saveBlob(blob: Blob, fileName: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = fileName;
+    link.click();
+
+    window.URL.revokeObjectURL(url);
+  }
+
+  private getCurrentDateStamp(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+
+    return `${year}${month}${day}_${hour}${minute}`;
   }
 
   startEdit(entry: SavingsEntryResponse): void {
@@ -435,4 +497,6 @@ export class AllSavingsComponent implements OnInit {
     return `${year}-${month}`;
   }
 }
+
+
 

@@ -7,6 +7,14 @@
 
   <div class="header-actions">
     <button type="button" (click)="loadAllSavings()">Aktualisieren</button>
+
+    <button type="button" (click)="downloadCsv()" [disabled]="isExporting()">
+      {{ isExporting() ? 'Export läuft...' : 'CSV exportieren' }}
+    </button>
+
+    <button type="button" (click)="downloadExcel()" [disabled]="isExporting()">
+      {{ isExporting() ? 'Export läuft...' : 'Excel exportieren' }}
+    </button>
   </div>
 </section>
 
@@ -239,3 +247,4 @@
     </div>
   }
 </section>
+

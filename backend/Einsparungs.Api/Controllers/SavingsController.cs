@@ -288,9 +288,9 @@ public class SavingsController : ControllerBase
         {
             errors.Add("KVNR ist ein Pflichtfeld.");
         }
-        else if (kvnr.Trim().Length != 10)
+        else if (!IsValidKvnr(kvnr.Trim()))
         {
-            errors.Add("KVNR muss genau 10 Zeichen haben.");
+            errors.Add("KVNR muss aus einem Großbuchstaben und genau 9 Ziffern bestehen.");
         }
 
         if (oldKvAmount < 0)
@@ -346,6 +346,29 @@ public class SavingsController : ControllerBase
         return User.IsInRole("Fuehrungskraft") || User.IsInRole("Admin");
     }
 
+    private static bool IsValidKvnr(string kvnr)
+    {
+        if (kvnr.Length != 10)
+        {
+            return false;
+        }
+
+        if (kvnr[0] < 'A' || kvnr[0] > 'Z')
+        {
+            return false;
+        }
+
+        for (var i = 1; i < kvnr.Length; i++)
+        {
+            if (!char.IsDigit(kvnr[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static DateTime NormalizeMonth(DateTime month)
     {
         return new DateTime(month.Year, month.Month, 1);
@@ -397,3 +420,4 @@ public class SavingsController : ControllerBase
         });
     }
 }
+

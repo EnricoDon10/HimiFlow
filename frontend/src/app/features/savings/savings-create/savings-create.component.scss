@@ -1,8 +1,5 @@
-﻿.placeholder {
-  background: #ffffff;
-  border-radius: 1.25rem;
-  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
-  padding: 2rem;
+﻿.page-header {
+  margin-bottom: 1.5rem;
 
   p {
     margin: 0 0 0.3rem;
@@ -13,11 +10,168 @@
   }
 
   h1 {
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.4rem;
     color: #0f172a;
+    font-size: 2rem;
   }
 
   span {
     color: #64748b;
+  }
+}
+
+.form-card,
+.result-card,
+.status-card {
+  background: #ffffff;
+  border-radius: 1.25rem;
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
+  padding: 1.5rem;
+}
+
+.savings-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+label {
+  display: grid;
+  gap: 0.45rem;
+  color: #334155;
+  font-weight: 700;
+}
+
+input,
+select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.8rem;
+  padding: 0.8rem 0.9rem;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+input:focus,
+select:focus {
+  outline: 3px solid rgba(37, 99, 235, 0.18);
+  border-color: #2563eb;
+}
+
+.product-group-area {
+  display: grid;
+  gap: 1rem;
+}
+
+.search-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}
+
+.calculation-box {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  border-radius: 1rem;
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.25rem;
+
+  span {
+    color: #1d4ed8;
+    font-weight: 700;
+  }
+
+  strong {
+    color: #0f172a;
+    font-size: 2rem;
+  }
+
+  small {
+    color: #475569;
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+button {
+  border: 0;
+  border-radius: 0.8rem;
+  padding: 0.85rem 1.15rem;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  background: #0f172a;
+}
+
+.message {
+  border-radius: 0.9rem;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.message.error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.message.success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.result-card {
+  margin-top: 1.5rem;
+
+  h2 {
+    margin-top: 0;
+  }
+}
+
+dl {
+  display: grid;
+  gap: 0.9rem;
+}
+
+dt {
+  color: #64748b;
+  font-weight: 800;
+}
+
+dd {
+  margin: 0.2rem 0 0;
+  color: #0f172a;
+}
+
+@media (max-width: 800px) {
+  .form-grid,
+  .search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  button {
+    width: 100%;
   }
 }

@@ -1,5 +1,161 @@
-﻿<section class="placeholder">
+﻿<section class="page-header">
   <p>Fachseite</p>
   <h1>Einsparung erfassen</h1>
-  <span>Diese Seite verbinden wir als Nächstes mit den Stammdaten und POST /api/savings.</span>
+  <span>Erfassen Sie einen neuen Einsparungsdatensatz. Die Ersparnis wird automatisch berechnet.</span>
 </section>
+
+@if (isLoadingMasterData()) {
+  <section class="status-card">
+    Stammdaten werden geladen...
+  </section>
+} @else {
+  <section class="form-card">
+    @if (errorMessage()) {
+      <div class="message error">
+        {{ errorMessage() }}
+      </div>
+    }
+
+    @if (successMessage()) {
+      <div class="message success">
+        {{ successMessage() }}
+      </div>
+    }
+
+    <form class="savings-form" (ngSubmit)="save()">
+      <div class="form-grid">
+        <label>
+          Monat
+          <input
+            type="month"
+            name="month"
+            [(ngModel)]="month"
+          />
+        </label>
+
+        <label>
+          KVNR
+          <input
+            type="text"
+            name="kvnr"
+            maxlength="10"
+            [(ngModel)]="kvnr"
+            placeholder="z. B. A123456789"
+          />
+        </label>
+
+        <label>
+          Alter KV
+          <input
+            type="number"
+            name="oldKvAmount"
+            min="0"
+            step="0.01"
+            [ngModel]="oldKvAmount" (ngModelChange)="onOldKvAmountChanged($event)"
+          />
+        </label>
+
+        <label>
+          Neuer KV
+          <input
+            type="number"
+            name="newKvAmount"
+            min="0"
+            step="0.01"
+            [ngModel]="newKvAmount" (ngModelChange)="onNewKvAmountChanged($event)"
+          />
+        </label>
+
+        <label>
+          Team
+          <select name="teamId" [(ngModel)]="teamId">
+            @for (team of teams(); track team.id) {
+              <option [ngValue]="team.id">{{ team.displayName }}</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          Einspargrund
+          <select name="savingReasonId" [(ngModel)]="savingReasonId">
+            @for (reason of savingReasons(); track reason.id) {
+              <option [ngValue]="reason.id">{{ reason.name }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <div class="product-group-area">
+        <label>
+          Produktgruppe suchen
+          <div class="search-row">
+            <input
+              type="text"
+              name="productGroupSearch"
+              [(ngModel)]="productGroupSearch"
+              placeholder="z. B. Rollstuhl"
+            />
+
+            <button type="button" class="secondary-button" (click)="searchProductGroups()">
+              Suchen
+            </button>
+          </div>
+        </label>
+
+        <label>
+          Produktgruppe
+          <select name="productGroupId" [(ngModel)]="productGroupId">
+            @for (productGroup of productGroups(); track productGroup.id) {
+              <option [ngValue]="productGroup.id">{{ productGroup.displayValue }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <aside class="calculation-box">
+        <span>Berechnete Ersparnis</span>
+        <strong>{{ formatMoney(calculatedSavingAmount) }}</strong>
+        <small>Formel: Alter KV - Neuer KV</small>
+      </aside>
+
+      <div class="actions">
+        <button type="submit" [disabled]="isSaving()">
+          {{ isSaving() ? 'Speichern läuft...' : 'Einsparung speichern' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  @if (createdEntry()) {
+    <section class="result-card">
+      <h2>Zuletzt gespeicherter Datensatz</h2>
+
+      <dl>
+        <div>
+          <dt>KVNR</dt>
+          <dd>{{ createdEntry()?.kvnr }}</dd>
+        </div>
+
+        <div>
+          <dt>Team</dt>
+          <dd>{{ createdEntry()?.teamName }}</dd>
+        </div>
+
+        <div>
+          <dt>Einspargrund</dt>
+          <dd>{{ createdEntry()?.savingReasonName }}</dd>
+        </div>
+
+        <div>
+          <dt>Produktgruppe</dt>
+          <dd>{{ createdEntry()?.productGroupDisplayValue }}</dd>
+        </div>
+
+        <div>
+          <dt>Ersparnis</dt>
+          <dd>{{ formatMoney(createdEntry()?.savingAmount ?? 0) }}</dd>
+        </div>
+      </dl>
+    </section>
+  }
+}

@@ -286,13 +286,14 @@ export class AllSavingsComponent implements OnInit {
   }
 
   formatDateTime(value: string): string {
-    const date = new Date(value);
+    const date = this.parseApiUtcDate(value);
 
     if (Number.isNaN(date.getTime())) {
       return '-';
     }
 
     return new Intl.DateTimeFormat('de-DE', {
+      timeZone: 'Europe/Berlin',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -314,6 +315,18 @@ export class AllSavingsComponent implements OnInit {
     }
 
     return this.getTotalSavingAmount() / entries.length;
+  }
+
+  private parseApiUtcDate(value: string): Date {
+    if (!value) {
+      return new Date(Number.NaN);
+    }
+
+    const hasTimeZoneInformation =
+      value.endsWith('Z') ||
+      /[+-]\d{2}:\d{2}$/.test(value);
+
+    return new Date(hasTimeZoneInformation ? value : `${value}Z`);
   }
 
   private validateEditForm(): string | null {
@@ -422,3 +435,4 @@ export class AllSavingsComponent implements OnInit {
     return `${year}-${month}`;
   }
 }
+

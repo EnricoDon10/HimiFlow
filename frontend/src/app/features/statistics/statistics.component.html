@@ -1,5 +1,176 @@
-﻿<section class="placeholder">
-  <p>Statistik</p>
-  <h1>Auswertungen</h1>
-  <span>Diese Seite verbindet sich später mit GET /api/statistics/*.</span>
+﻿<section class="page-header">
+  <div>
+    <p>Auswertung</p>
+    <h1>Statistik</h1>
+    <span>Globale Übersicht über alle erfassten Einsparungen.</span>
+  </div>
+
+  <button type="button" (click)="loadStatistics()">Aktualisieren</button>
 </section>
+
+@if (errorMessage()) {
+  <section class="message error">
+    {{ errorMessage() }}
+  </section>
+}
+
+@if (isLoading()) {
+  <section class="state-card">
+    Statistiken werden geladen...
+  </section>
+} @else {
+  <section class="summary-grid">
+    <article class="summary-card">
+      <span>Anzahl Datensätze</span>
+      <strong>{{ getTotalEntries() }}</strong>
+    </article>
+
+    <article class="summary-card">
+      <span>Gesamtersparnis</span>
+      <strong>{{ formatMoney(getTotalSavingAmount()) }}</strong>
+    </article>
+
+    <article class="summary-card">
+      <span>Durchschnitt</span>
+      <strong>{{ formatMoney(getAverageSavingAmount()) }}</strong>
+    </article>
+  </section>
+
+  <section class="statistics-grid">
+    <article class="chart-card wide">
+      <div class="card-header">
+        <div>
+          <p>Monatliche Entwicklung</p>
+          <h2>Ersparnis nach Monat</h2>
+        </div>
+      </div>
+
+      @if (monthly().length === 0) {
+        <div class="empty-state">Keine Monatsdaten vorhanden.</div>
+      } @else {
+        <div class="bar-list">
+          @for (item of monthly(); track $index) {
+            <div class="bar-row">
+              <div class="bar-label">
+                <strong>{{ getMonthlyLabel(item) }}</strong>
+                <span>{{ getMonthlyCount(item) }} Datensätze</span>
+              </div>
+
+              <div class="bar-track">
+                <div
+                  class="bar-fill blue"
+                  [style.width.%]="getBarWidth(getMonthlyAmount(item), getMonthlyMaxAmount())"
+                ></div>
+              </div>
+
+              <strong class="bar-value">{{ formatMoney(getMonthlyAmount(item)) }}</strong>
+            </div>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="chart-card">
+      <div class="card-header">
+        <div>
+          <p>Organisation</p>
+          <h2>Nach Team</h2>
+        </div>
+      </div>
+
+      @if (byTeam().length === 0) {
+        <div class="empty-state">Keine Teamdaten vorhanden.</div>
+      } @else {
+        <div class="bar-list compact">
+          @for (item of byTeam(); track $index) {
+            <div class="bar-row compact">
+              <div class="bar-label">
+                <strong>{{ getGroupLabel(item) }}</strong>
+                <span>{{ getGroupCount(item) }} Datensätze</span>
+              </div>
+
+              <div class="bar-track">
+                <div
+                  class="bar-fill green"
+                  [style.width.%]="getBarWidth(getGroupAmount(item), getGroupMaxAmount(byTeam()))"
+                ></div>
+              </div>
+
+              <strong class="bar-value">{{ formatMoney(getGroupAmount(item)) }}</strong>
+            </div>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="chart-card">
+      <div class="card-header">
+        <div>
+          <p>Fachlichkeit</p>
+          <h2>Nach Einspargrund</h2>
+        </div>
+      </div>
+
+      @if (bySavingReason().length === 0) {
+        <div class="empty-state">Keine Daten nach Einspargrund vorhanden.</div>
+      } @else {
+        <div class="bar-list compact">
+          @for (item of bySavingReason(); track $index) {
+            <div class="bar-row compact">
+              <div class="bar-label">
+                <strong>{{ getGroupLabel(item) }}</strong>
+                <span>{{ getGroupCount(item) }} Datensätze</span>
+              </div>
+
+              <div class="bar-track">
+                <div
+                  class="bar-fill orange"
+                  [style.width.%]="getBarWidth(getGroupAmount(item), getGroupMaxAmount(bySavingReason()))"
+                ></div>
+              </div>
+
+              <strong class="bar-value">{{ formatMoney(getGroupAmount(item)) }}</strong>
+            </div>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="chart-card wide">
+      <div class="card-header">
+        <div>
+          <p>Produktgruppen</p>
+          <h2>Nach Produktgruppe</h2>
+        </div>
+      </div>
+
+      @if (byProductGroup().length === 0) {
+        <div class="empty-state">Keine Produktgruppendaten vorhanden.</div>
+      } @else {
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Produktgruppe</th>
+                <th>Datensätze</th>
+                <th>Gesamtersparnis</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              @for (item of byProductGroup(); track $index) {
+                <tr>
+                  <td>{{ getGroupLabel(item) }}</td>
+                  <td>{{ getGroupCount(item) }}</td>
+                  <td>
+                    <strong class="saving">{{ formatMoney(getGroupAmount(item)) }}</strong>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </article>
+  </section>
+}

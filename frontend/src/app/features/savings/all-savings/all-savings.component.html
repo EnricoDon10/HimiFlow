@@ -190,7 +190,7 @@
             <th>Team</th>
             <th>Einspargrund</th>
             <th>Produktgruppe</th>
-            <th>Erfasst von</th>
+            <th>Benutzer</th>
             <th>Erstellt am</th>
             <th>Version</th>
           </tr>
@@ -227,7 +227,9 @@
               <td>{{ entry.teamName }}</td>
               <td>{{ entry.savingReasonName }}</td>
               <td>{{ entry.productGroupDisplayValue }}</td>
-              <td>{{ entry.createdByDisplayName }}</td>
+              <td>
+                <strong>{{ entry.createdByDisplayName }}</strong>
+              </td>
               <td>{{ formatDateTime(entry.createdAt) }}</td>
               <td>{{ entry.version }}</td>
             </tr>

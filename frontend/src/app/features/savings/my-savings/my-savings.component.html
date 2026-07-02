@@ -1,5 +1,84 @@
-﻿<section class="placeholder">
-  <p>Fachseite</p>
-  <h1>Meine Einsparungen</h1>
-  <span>Diese Seite verbindet sich später mit GET /api/savings/my.</span>
+﻿<section class="page-header">
+  <div>
+    <p>Fachseite</p>
+    <h1>Meine Einsparungen</h1>
+    <span>Hier sehen Sie alle Einsparungsdatensätze, die Sie selbst erfasst haben.</span>
+  </div>
+
+  <div class="header-actions">
+    <a routerLink="/savings/new">Neue Einsparung erfassen</a>
+    <button type="button" (click)="loadMySavings()">Aktualisieren</button>
+  </div>
+</section>
+
+@if (errorMessage()) {
+  <section class="message error">
+    {{ errorMessage() }}
+  </section>
+}
+
+<section class="summary-grid">
+  <article class="summary-card">
+    <span>Anzahl Datensätze</span>
+    <strong>{{ savingsEntries().length }}</strong>
+  </article>
+
+  <article class="summary-card">
+    <span>Gesamtersparnis</span>
+    <strong>{{ formatMoney(getTotalSavingAmount()) }}</strong>
+  </article>
+</section>
+
+<section class="table-card">
+  @if (isLoading()) {
+    <div class="state-box">
+      Einsparungen werden geladen...
+    </div>
+  } @else if (savingsEntries().length === 0) {
+    <div class="empty-state">
+      <h2>Noch keine Einsparungen vorhanden</h2>
+      <p>Sie haben bisher noch keinen Einsparungsdatensatz erfasst.</p>
+      <a routerLink="/savings/new">Ersten Datensatz erfassen</a>
+    </div>
+  } @else {
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Monat</th>
+            <th>KVNR</th>
+            <th>Alter KV</th>
+            <th>Neuer KV</th>
+            <th>Ersparnis</th>
+            <th>Team</th>
+            <th>Einspargrund</th>
+            <th>Produktgruppe</th>
+            <th>Erstellt am</th>
+            <th>Version</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (entry of savingsEntries(); track entry.id) {
+            <tr>
+              <td>{{ formatMonth(entry.month) }}</td>
+              <td>
+                <span class="kvnr">{{ entry.kvnr }}</span>
+              </td>
+              <td>{{ formatMoney(entry.oldKvAmount) }}</td>
+              <td>{{ formatMoney(entry.newKvAmount) }}</td>
+              <td>
+                <strong class="saving">{{ formatMoney(entry.savingAmount) }}</strong>
+              </td>
+              <td>{{ entry.teamName }}</td>
+              <td>{{ entry.savingReasonName }}</td>
+              <td>{{ entry.productGroupDisplayValue }}</td>
+              <td>{{ formatDateTime(entry.createdAt) }}</td>
+              <td>{{ entry.version }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 </section>

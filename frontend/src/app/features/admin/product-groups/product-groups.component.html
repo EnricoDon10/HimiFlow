@@ -1,0 +1,135 @@
+<section class="page-header">
+  <div>
+    <p>Stammdaten</p>
+    <h1>Produktgruppen verwalten</h1>
+    <span>Produktgruppen anlegen, bearbeiten und aus dem Dropdown entfernen.</span>
+  </div>
+
+  <button type="button" (click)="loadProductGroups()">Aktualisieren</button>
+</section>
+
+@if (errorMessage()) {
+  <section class="message error">
+    {{ errorMessage() }}
+  </section>
+}
+
+@if (successMessage()) {
+  <section class="message success">
+    {{ successMessage() }}
+  </section>
+}
+
+<section class="create-card">
+  <div class="card-header">
+    <p>Neue Produktgruppe</p>
+    <h2>Produktgruppe erfassen</h2>
+  </div>
+
+  <form class="create-form" (ngSubmit)="createProductGroup()">
+    <label>
+      Produktgruppe
+      <input
+        type="text"
+        name="displayValue"
+        [(ngModel)]="displayValue"
+        placeholder="z. B. 18.50.03.0xxx, Aktivrollstuhl"
+        autocomplete="off"
+        maxlength="500"
+      />
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" [disabled]="isSaving()">
+        {{ isSaving() ? 'Speichert...' : 'Produktgruppe anlegen' }}
+      </button>
+    </div>
+  </form>
+</section>
+
+<section class="table-card">
+  <div class="card-header">
+    <p>Bestand</p>
+    <h2>Alle Produktgruppen</h2>
+  </div>
+
+  @if (isLoading()) {
+    <div class="state-box">
+      Produktgruppen werden geladen...
+    </div>
+  } @else if (productGroups().length === 0) {
+    <div class="state-box">
+      Keine Produktgruppen vorhanden.
+    </div>
+  } @else {
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Produktgruppe</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @for (productGroup of productGroups(); track productGroup.id) {
+            <tr>
+              <td>
+                @if (isEditing(productGroup)) {
+                  <input
+                    type="text"
+                    name="editDisplayValue"
+                    [(ngModel)]="editDisplayValue"
+                    maxlength="500"
+                  />
+                } @else {
+                  <strong>{{ productGroup.displayValue }}</strong>
+                }
+              </td>
+              <td>
+                <div class="row-actions">
+                  @if (isEditing(productGroup)) {
+                    <button
+                      type="button"
+                      class="save-button"
+                      (click)="updateProductGroup(productGroup)"
+                      [disabled]="isSaving()"
+                    >
+                      Speichern
+                    </button>
+
+                    <button
+                      type="button"
+                      class="cancel-button"
+                      (click)="cancelEditing()"
+                      [disabled]="isSaving()"
+                    >
+                      Abbrechen
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="edit-button"
+                      (click)="startEditing(productGroup)"
+                    >
+                      Bearbeiten
+                    </button>
+
+                    <button
+                      type="button"
+                      class="delete-button"
+                      (click)="deleteProductGroup(productGroup)"
+                      [disabled]="deletingProductGroupId() === productGroup.id"
+                    >
+                      {{ deletingProductGroupId() === productGroup.id ? 'Löscht...' : 'Löschen' }}
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

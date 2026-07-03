@@ -19,6 +19,12 @@
 
       <a routerLink="/statistics" routerLinkActive="active">Statistik</a>
 
+      @if (canManageProductGroups()) {
+        <a routerLink="/admin/product-groups" routerLinkActive="active">
+          Produktgruppen verwalten
+        </a>
+      }
+
         @if (isAdmin()) {
           <a routerLink="/admin/users" routerLinkActive="active">
             Benutzerverwaltung

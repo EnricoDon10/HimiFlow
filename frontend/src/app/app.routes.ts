@@ -40,11 +40,18 @@ export const routes: Routes = [
         data: {
           roles: ['Fuehrungskraft', 'Admin']
         }
-      },      {
+      },
+      {
         path: 'admin/users',
         canActivate: [roleGuard],
         data: { roles: ['Admin'] },
         loadComponent: () => import('./features/admin/user-management/user-management.component').then((m) => m.UserManagementComponent)
+      },
+      {
+        path: 'admin/product-groups',
+        canActivate: [roleGuard],
+        data: { roles: ['Fuehrungskraft', 'Admin'] },
+        loadComponent: () => import('./features/admin/product-groups/product-groups.component').then((m) => m.ProductGroupsComponent)
       },
 
       {

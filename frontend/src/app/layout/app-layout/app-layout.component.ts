@@ -57,6 +57,10 @@ export class AppLayoutComponent {
     return this.canViewAllSavings();
   }
 
+  canManageProductGroups(): boolean {
+    return this.hasRole('Admin') || this.hasRole('Fuehrungskraft');
+  }
+
   isAdmin(): boolean {
     return this.hasRole('Admin');
   }

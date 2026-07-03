@@ -14,3 +14,7 @@ export interface ProductGroup {
   id: number;
   displayValue: string;
 }
+
+export interface ProductGroupSaveRequest {
+  displayValue: string;
+}

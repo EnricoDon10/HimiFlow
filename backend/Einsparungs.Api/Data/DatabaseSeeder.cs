@@ -14,6 +14,7 @@ public static class DatabaseSeeder
         await SeedSavingReasonsAsync(db);
         await SeedProductGroupsAsync(db);
         await SeedUsersAsync(db);
+        await UpdateExistingDemoUsersAsync(db);
     }
 
     private static async Task SeedRolesAsync(AppDbContext db)
@@ -43,8 +44,8 @@ public static class DatabaseSeeder
             new Team { Code = "3410", Name = "Bochum 1", DisplayName = "Bochum 1 (3410)" },
             new Team { Code = "3420", Name = "Bochum 2", DisplayName = "Bochum 2 (3420)" },
             new Team { Code = "3430", Name = "Bochum 3", DisplayName = "Bochum 3 (3430)" },
-            new Team { Code = "3440", Name = "Ruesselsheim", DisplayName = "Ruesselsheim (3440)" },
-            new Team { Code = "3450", Name = "Luebeck", DisplayName = "Luebeck (3450)" }
+            new Team { Code = "3440", Name = "Rüsselsheim", DisplayName = "Rüsselsheim (3440)" },
+            new Team { Code = "3450", Name = "Lübeck", DisplayName = "Lübeck (3450)" }
         );
 
         await db.SaveChangesAsync();
@@ -58,11 +59,11 @@ public static class DatabaseSeeder
         }
 
         db.SavingReasons.AddRange(
-            new SavingReason { Name = "vollstaendig keine med. Notwendigkeit" },
+            new SavingReason { Name = "vollständig keine med. Notwendigkeit" },
             new SavingReason { Name = "teilweise keine med. Notwendigkeit" },
             new SavingReason { Name = "Lagerversorgung" },
-            new SavingReason { Name = "Kuerzung auf Vertragspreis" },
-            new SavingReason { Name = "Kuerzung allgemein" },
+            new SavingReason { Name = "Kürzung auf Vertragspreis" },
+            new SavingReason { Name = "Kürzung allgemein" },
             new SavingReason { Name = "Rabatt" },
             new SavingReason { Name = "Umversorgung auf anderes Himi" }
         );
@@ -80,8 +81,8 @@ public static class DatabaseSeeder
         db.ProductGroups.AddRange(
             new ProductGroup { DisplayValue = "18.50.03.0xxx, Aktivrollstuhl", ImportedBy = "system" },
             new ProductGroup { DisplayValue = "17.10.xx.xxxx, Kompressionsartikel - nicht apparativ ARM", ImportedBy = "system" },
-            new ProductGroup { DisplayValue = "31.03.xx.xxxx, Pflegehilfsmittel zur Koerperpflege", ImportedBy = "system" },
-            new ProductGroup { DisplayValue = "14.24.xx.xxxx, Inhalations- und Atemtherapiegeraete", ImportedBy = "system" },
+            new ProductGroup { DisplayValue = "31.03.xx.xxxx, Pflegehilfsmittel zur Körperpflege", ImportedBy = "system" },
+            new ProductGroup { DisplayValue = "14.24.xx.xxxx, Inhalations- und Atemtherapiegeräte", ImportedBy = "system" },
             new ProductGroup { DisplayValue = "19.40.xx.xxxx, Krankenpflegeartikel", ImportedBy = "system" }
         );
 
@@ -105,26 +106,26 @@ public static class DatabaseSeeder
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword("Demo123!");
 
-        var mitarbeiter1 = new AppUser
+        var enrico = new AppUser
         {
-            UserName = "mitarbeiter1",
-            DisplayName = "Mitarbeiter Eins",
+            UserName = "enrico.mancuso",
+            DisplayName = "Enrico Mancuso",
             PasswordHash = passwordHash,
             TeamId = bochum1.Id
         };
 
-        var mitarbeiter2 = new AppUser
+        var daniel = new AppUser
         {
-            UserName = "mitarbeiter2",
-            DisplayName = "Mitarbeiter Zwei",
+            UserName = "daniel.beck",
+            DisplayName = "Daniel Beck",
             PasswordHash = passwordHash,
             TeamId = bochum2.Id
         };
 
-        var teamleiter = new AppUser
+        var marco = new AppUser
         {
-            UserName = "teamleiter",
-            DisplayName = "Teamleiter Demo",
+            UserName = "marco.meyer",
+            DisplayName = "Marco Meyer",
             PasswordHash = passwordHash,
             TeamId = bochum3.Id
         };
@@ -136,14 +137,49 @@ public static class DatabaseSeeder
             PasswordHash = passwordHash
         };
 
-        db.Users.AddRange(mitarbeiter1, mitarbeiter2, teamleiter, admin);
+        db.Users.AddRange(enrico, daniel, marco, admin);
 
         db.UserRoles.AddRange(
-            new AppUserRole { AppUser = mitarbeiter1, AppRole = mitarbeiterRole },
-            new AppUserRole { AppUser = mitarbeiter2, AppRole = mitarbeiterRole },
-            new AppUserRole { AppUser = teamleiter, AppRole = fuehrungskraftRole },
+            new AppUserRole { AppUser = enrico, AppRole = mitarbeiterRole },
+            new AppUserRole { AppUser = daniel, AppRole = mitarbeiterRole },
+            new AppUserRole { AppUser = marco, AppRole = fuehrungskraftRole },
             new AppUserRole { AppUser = admin, AppRole = adminRole }
         );
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task UpdateExistingDemoUsersAsync(AppDbContext db)
+    {
+        await RenameDemoUserAsync(db, "mitarbeiter1", "enrico.mancuso", "Enrico Mancuso");
+        await RenameDemoUserAsync(db, "mitarbeiter2", "daniel.beck", "Daniel Beck");
+        await RenameDemoUserAsync(db, "teamleiter", "marco.meyer", "Marco Meyer");
+    }
+
+    private static async Task RenameDemoUserAsync(
+        AppDbContext db,
+        string oldUserName,
+        string newUserName,
+        string newDisplayName)
+    {
+        var existingTargetUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == newUserName);
+
+        if (existingTargetUser is not null)
+        {
+            existingTargetUser.DisplayName = newDisplayName;
+            await db.SaveChangesAsync();
+            return;
+        }
+
+        var oldDemoUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == oldUserName);
+
+        if (oldDemoUser is null)
+        {
+            return;
+        }
+
+        oldDemoUser.UserName = newUserName;
+        oldDemoUser.DisplayName = newDisplayName;
 
         await db.SaveChangesAsync();
     }

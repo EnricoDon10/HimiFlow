@@ -1,4 +1,4 @@
-﻿.page-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -7,7 +7,7 @@
 
   p {
     margin: 0 0 0.3rem;
-    color: #2563eb;
+    color: #F58220;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -15,18 +15,18 @@
 
   h1 {
     margin: 0 0 0.4rem;
-    color: #0f172a;
+    color: #1F1F1F;
     font-size: 2rem;
   }
 
   span {
-    color: #64748b;
+    color: #6B6B6B;
   }
 
   button {
     border: 0;
     border-radius: 0.8rem;
-    background: #0f172a;
+    background: #1F1F1F;
     color: #ffffff;
     padding: 0.8rem 1rem;
     font-weight: 800;
@@ -56,12 +56,12 @@
   gap: 0.4rem;
 
   span {
-    color: #64748b;
+    color: #6B6B6B;
     font-weight: 700;
   }
 
   strong {
-    color: #0f172a;
+    color: #1F1F1F;
     font-size: 1.6rem;
   }
 }
@@ -78,7 +78,7 @@
 }
 
 .state-card {
-  color: #64748b;
+  color: #6B6B6B;
 }
 
 .statistics-grid {
@@ -96,7 +96,7 @@
 
   p {
     margin: 0 0 0.25rem;
-    color: #2563eb;
+    color: #F58220;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -105,7 +105,7 @@
 
   h2 {
     margin: 0;
-    color: #0f172a;
+    color: #1F1F1F;
   }
 }
 
@@ -132,11 +132,11 @@
   gap: 0.2rem;
 
   strong {
-    color: #0f172a;
+    color: #1F1F1F;
   }
 
   span {
-    color: #64748b;
+    color: #6B6B6B;
     font-size: 0.9rem;
   }
 }
@@ -144,7 +144,7 @@
 .bar-track {
   height: 0.9rem;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: #E8E8E8;
   overflow: hidden;
 }
 
@@ -154,7 +154,7 @@
 }
 
 .bar-fill.blue {
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  background: linear-gradient(90deg, #F58220, #FDBA74);
 }
 
 .bar-fill.green {
@@ -187,20 +187,20 @@ table {
 th,
 td {
   padding: 0.9rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #E8E8E8;
   text-align: left;
 }
 
 th {
-  background: #f8fafc;
-  color: #334155;
+  background: #F7F7F5;
+  color: #3A3A3A;
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 td {
-  color: #0f172a;
+  color: #1F1F1F;
 }
 
 .saving {
@@ -209,7 +209,7 @@ td {
 
 .empty-state {
   padding: 2rem 1rem;
-  color: #64748b;
+  color: #6B6B6B;
   text-align: center;
 }
 

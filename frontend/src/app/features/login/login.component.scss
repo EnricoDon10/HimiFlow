@@ -1,10 +1,10 @@
-﻿.login-page {
+.login-page {
   min-height: 100vh;
   display: grid;
   place-items: center;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.16), transparent 34rem),
-    linear-gradient(135deg, #eef2ff 0%, #f8fafc 48%, #e0f2fe 100%);
+    radial-gradient(circle at top left, rgba(245, 130, 32, 0.18), transparent 34rem),
+    linear-gradient(135deg, #FFF4EA 0%, #F7F7F5 48%, #FFF4EA 100%);
   padding: 2rem;
 }
 
@@ -22,13 +22,13 @@
 
   h1 {
     margin: 0 0 0.5rem;
-    color: #0f172a;
+    color: #1F1F1F;
     font-size: 1.8rem;
   }
 
   p {
     margin: 0;
-    color: #64748b;
+    color: #6B6B6B;
   }
 }
 
@@ -39,20 +39,20 @@
   label {
     display: grid;
     gap: 0.4rem;
-    color: #334155;
+    color: #3A3A3A;
     font-weight: 600;
   }
 
   input {
-    border: 1px solid #cbd5e1;
+    border: 1px solid #D8D8D8;
     border-radius: 0.75rem;
     padding: 0.8rem 0.9rem;
     font: inherit;
   }
 
   input:focus {
-    outline: 3px solid rgba(37, 99, 235, 0.18);
-    border-color: #2563eb;
+    outline: 3px solid rgba(245, 130, 32, 0.22);
+    border-color: #F58220;
   }
 
   button {
@@ -60,7 +60,7 @@
     border: 0;
     border-radius: 0.75rem;
     padding: 0.9rem 1rem;
-    background: #2563eb;
+    background: #F58220;
     color: #ffffff;
     font-weight: 700;
     cursor: pointer;
@@ -83,6 +83,6 @@
   margin-top: 1.5rem;
   display: grid;
   gap: 0.3rem;
-  color: #475569;
+  color: #555555;
   font-size: 0.9rem;
 }

@@ -1,9 +1,9 @@
-﻿.dashboard-header {
+.dashboard-header {
   margin-bottom: 1.5rem;
 
   p {
     margin: 0 0 0.35rem;
-    color: #2563eb;
+    color: #F58220;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.1em;
@@ -11,7 +11,7 @@
 
   h1 {
     margin: 0;
-    color: #020617;
+    color: #151515;
     font-size: 2.1rem;
   }
 }
@@ -37,12 +37,12 @@
   padding: 1.5rem;
 
   span {
-    color: #64748b;
+    color: #6B6B6B;
     font-size: 1rem;
   }
 
   strong {
-    color: #020617;
+    color: #151515;
     font-size: 1.2rem;
   }
 }
@@ -60,13 +60,13 @@
 
   &:hover {
     transform: translateY(-2px);
-    border-color: #2563eb;
-    box-shadow: 0 1.2rem 3rem rgba(37, 99, 235, 0.16);
+    border-color: #F58220;
+    box-shadow: 0 1.2rem 3rem rgba(245, 130, 32, 0.18);
   }
 
   p {
     margin: 0 0 0.25rem;
-    color: #2563eb;
+    color: #F58220;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -74,16 +74,16 @@
 
   h2 {
     margin: 0 0 0.35rem;
-    color: #020617;
+    color: #151515;
   }
 
   span {
-    color: #64748b;
+    color: #6B6B6B;
   }
 
   > strong {
     border-radius: 0.9rem;
-    background: #2563eb;
+    background: #F58220;
     color: #ffffff;
     padding: 0.85rem 1.1rem;
   }
@@ -95,7 +95,7 @@
   width: 3.4rem;
   height: 3.4rem;
   border-radius: 1rem;
-  background: #2563eb;
+  background: #F58220;
   color: #ffffff;
   font-size: 2rem;
   font-weight: 900;
@@ -115,7 +115,7 @@
 
   p {
     margin: 0 0 0.25rem;
-    color: #2563eb;
+    color: #F58220;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -123,17 +123,17 @@
 
   h2 {
     margin: 0 0 0.35rem;
-    color: #020617;
+    color: #151515;
   }
 
   span {
-    color: #64748b;
+    color: #6B6B6B;
   }
 
   button {
     border: 0;
     border-radius: 0.85rem;
-    background: #020617;
+    background: #151515;
     color: #ffffff;
     padding: 0.8rem 1rem;
     font-weight: 800;
@@ -171,7 +171,7 @@
   display: flex;
   align-items: flex-end;
   border-radius: 999px 999px 0.8rem 0.8rem;
-  background: #e2e8f0;
+  background: #E8E8E8;
   overflow: hidden;
 }
 
@@ -179,7 +179,7 @@
   width: 100%;
   min-height: 0.5rem;
   border-radius: 999px 999px 0.8rem 0.8rem;
-  background: linear-gradient(180deg, #60a5fa, #2563eb);
+  background: linear-gradient(180deg, #FDBA74, #F58220);
 }
 
 .column-label {
@@ -189,11 +189,11 @@
   text-align: center;
 
   strong {
-    color: #020617;
+    color: #151515;
   }
 
   span {
-    color: #64748b;
+    color: #6B6B6B;
     font-size: 0.85rem;
   }
 }
@@ -216,8 +216,8 @@
 
 .state-box {
   border-radius: 1rem;
-  background: #f8fafc;
-  color: #64748b;
+  background: #F7F7F5;
+  color: #6B6B6B;
   padding: 2.5rem 1rem;
   text-align: center;
 }

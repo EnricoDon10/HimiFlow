@@ -151,22 +151,30 @@ public static class DatabaseSeeder
 
     private static async Task UpdateExistingDemoUsersAsync(AppDbContext db)
     {
-        await RenameDemoUserAsync(db, "mitarbeiter1", "enrico.mancuso", "Enrico Mancuso");
-        await RenameDemoUserAsync(db, "mitarbeiter2", "daniel.beck", "Daniel Beck");
-        await RenameDemoUserAsync(db, "teamleiter", "marco.meyer", "Marco Meyer");
+        var demoPasswordHash = BCrypt.Net.BCrypt.HashPassword("Demo123!");
+
+        await UpdateDemoUserAsync(db, "mitarbeiter1", "enrico.mancuso", "Enrico Mancuso", demoPasswordHash);
+        await UpdateDemoUserAsync(db, "mitarbeiter2", "daniel.beck", "Daniel Beck", demoPasswordHash);
+        await UpdateDemoUserAsync(db, "teamleiter", "marco.meyer", "Marco Meyer", demoPasswordHash);
+        await UpdateDemoUserAsync(db, "admin", "admin", "IT Admin Demo", demoPasswordHash);
+        await ResetDemoUserPasswordAsync(db, "001443", "Enrico Mancuso", demoPasswordHash);
+        await ResetDemoUserPasswordAsync(db, "001444", "Marco Meyer", demoPasswordHash);
+        await ResetDemoUserPasswordAsync(db, "001445", "Daniel Beck", demoPasswordHash);
     }
 
-    private static async Task RenameDemoUserAsync(
+    private static async Task UpdateDemoUserAsync(
         AppDbContext db,
         string oldUserName,
         string newUserName,
-        string newDisplayName)
+        string newDisplayName,
+        string passwordHash)
     {
         var existingTargetUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == newUserName);
 
         if (existingTargetUser is not null)
         {
             existingTargetUser.DisplayName = newDisplayName;
+            existingTargetUser.PasswordHash = passwordHash;
             await db.SaveChangesAsync();
             return;
         }
@@ -180,6 +188,26 @@ public static class DatabaseSeeder
 
         oldDemoUser.UserName = newUserName;
         oldDemoUser.DisplayName = newDisplayName;
+        oldDemoUser.PasswordHash = passwordHash;
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task ResetDemoUserPasswordAsync(
+        AppDbContext db,
+        string userName,
+        string displayName,
+        string passwordHash)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(x => x.UserName == userName);
+
+        if (user is null)
+        {
+            return;
+        }
+
+        user.DisplayName = displayName;
+        user.PasswordHash = passwordHash;
 
         await db.SaveChangesAsync();
     }

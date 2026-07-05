@@ -11,6 +11,7 @@ interface DashboardUser {
   role?: string;
   roleName?: string;
   userRole?: string;
+  roles?: string[];
 }
 
 @Component({
@@ -62,15 +63,45 @@ export class DashboardComponent implements OnInit {
   }
 
   getRole(): string {
+    const roles = this.getRoles();
+
+    return roles[0] || '-';
+  }
+
+  getRoles(): string[] {
     const user = this.currentUser();
 
-    return user?.role || user?.roleName || user?.userRole || '-';
+    if (!user) {
+      return [];
+    }
+
+    const roles = new Set<string>();
+
+    if (user.role) {
+      roles.add(user.role);
+    }
+
+    if (user.roleName) {
+      roles.add(user.roleName);
+    }
+
+    if (user.userRole) {
+      roles.add(user.userRole);
+    }
+
+    if (Array.isArray(user.roles)) {
+      for (const role of user.roles) {
+        roles.add(role);
+      }
+    }
+
+    return [...roles];
   }
 
   canViewAllSavings(): boolean {
-    const role = this.getRole();
+    const roles = this.getRoles();
 
-    return role === 'Admin' || role === 'Fuehrungskraft';
+    return roles.includes('Admin') || roles.includes('Fuehrungskraft');
   }
 
   canExport(): boolean {

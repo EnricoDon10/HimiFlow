@@ -20,8 +20,15 @@ public sealed class SqliteBackupService
 
     public string BackupDirectory => ResolveBackupDirectory();
 
+    public bool IsSqliteProvider => string.Equals(
+        configuration["Database:Provider"] ?? "SQLite",
+        "SQLite",
+        StringComparison.OrdinalIgnoreCase);
+
     public async Task<BackupFile> CreateAsync(CancellationToken cancellationToken = default)
     {
+        EnsureSqliteProvider();
+
         var sourcePath = ResolveDatabasePath();
         var backupDirectory = ResolveBackupDirectory();
 
@@ -65,8 +72,17 @@ public sealed class SqliteBackupService
         }
 
         await connection.CloseAsync();
+
+        var validation = await ValidateAsync(destinationPath, cancellationToken);
+        if (!validation.IsValid)
+        {
+            File.Delete(destinationPath);
+            throw new InvalidOperationException(
+                $"Das SQLite-Backup ist nicht lesbar und wurde verworfen: {validation.Result}");
+        }
+
         logger.LogInformation("SQLite-Backup erstellt: {BackupFileName} ({SizeBytes} Bytes)", fileName, fileInfo.Length);
-        return new BackupFile(fileName, fileInfo.Length, fileInfo.CreationTimeUtc, destinationPath);
+        return new BackupFile(fileName, fileInfo.Length, fileInfo.LastWriteTimeUtc, destinationPath);
     }
 
     public IReadOnlyList<BackupFile> List()
@@ -80,13 +96,92 @@ public sealed class SqliteBackupService
         return Directory.EnumerateFiles(directory, "*.db", SearchOption.TopDirectoryOnly)
             .Select(path => new FileInfo(path))
             .Where(info => info.Length > 0)
-            .OrderByDescending(info => info.CreationTimeUtc)
-            .Select(info => new BackupFile(info.Name, info.Length, info.CreationTimeUtc, info.FullName))
+            .OrderByDescending(info => info.LastWriteTimeUtc)
+            .Select(info => new BackupFile(info.Name, info.Length, info.LastWriteTimeUtc, info.FullName))
             .ToArray();
+    }
+
+    public async Task<BackupValidationResult> ValidateAsync(
+        string backupPath,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureSqliteProvider();
+
+        var fullPath = Path.GetFullPath(backupPath);
+        if (!File.Exists(fullPath))
+        {
+            return new BackupValidationResult(false, "Datei nicht gefunden.");
+        }
+
+        try
+        {
+            var connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = fullPath,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = false
+            }.ToString();
+
+            await using var connection = new SqliteConnection(connectionString);
+            await connection.OpenAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA integrity_check;";
+            var result = Convert.ToString(
+                await command.ExecuteScalarAsync(cancellationToken)) ?? "Kein Ergebnis";
+
+            return new BackupValidationResult(
+                string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase),
+                result);
+        }
+        catch (SqliteException exception)
+        {
+            logger.LogWarning(exception, "SQLite-Backupprüfung fehlgeschlagen: {BackupPath}", fullPath);
+            return new BackupValidationResult(false, "SQLite-Datei ist nicht lesbar.");
+        }
+    }
+
+    public int PruneExpired(int retentionDays, int minimumBackupsToKeep)
+    {
+        if (retentionDays <= 0)
+        {
+            return 0;
+        }
+
+        var backupDirectory = ResolveBackupDirectory();
+        if (!Directory.Exists(backupDirectory))
+        {
+            return 0;
+        }
+
+        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+        var candidates = Directory
+            .EnumerateFiles(backupDirectory, "einsparungen_*.db", SearchOption.TopDirectoryOnly)
+            .Select(path => new FileInfo(path))
+            .Where(file => file.Length > 0)
+            .OrderByDescending(file => file.LastWriteTimeUtc)
+            .Skip(Math.Max(1, minimumBackupsToKeep))
+            .Where(file => file.LastWriteTimeUtc < cutoff)
+            .ToArray();
+
+        foreach (var candidate in candidates)
+        {
+            candidate.Delete();
+        }
+
+        if (candidates.Length > 0)
+        {
+            logger.LogInformation(
+                "{Count} abgelaufene SQLite-Backups wurden nach der Aufbewahrungsregel entfernt.",
+                candidates.Length);
+        }
+
+        return candidates.Length;
     }
 
     public string ResolveDatabasePath()
     {
+        EnsureSqliteProvider();
+
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("DefaultConnection ist nicht konfiguriert.");
         var dataSource = new SqliteConnectionStringBuilder(connectionString).DataSource;
@@ -108,5 +203,15 @@ public sealed class SqliteBackupService
 
     private static string EscapeSqliteLiteral(string value) => value.Replace("'", "''", StringComparison.Ordinal);
 
+    private void EnsureSqliteProvider()
+    {
+        if (!IsSqliteProvider)
+        {
+            throw new InvalidOperationException(
+                "Die lokale Backup-Funktion ist ausschließlich für den SQLite-Betrieb vorgesehen.");
+        }
+    }
+
     public sealed record BackupFile(string FileName, long SizeBytes, DateTime CreatedAtUtc, string FullPath);
+    public sealed record BackupValidationResult(bool IsValid, string Result);
 }

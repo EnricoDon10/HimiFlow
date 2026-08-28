@@ -150,6 +150,7 @@ dist
 *.db-wal
 **/backups/
 artifacts/
+sbom/
 
 # VS Code / Visual Studio local files
 .vs/

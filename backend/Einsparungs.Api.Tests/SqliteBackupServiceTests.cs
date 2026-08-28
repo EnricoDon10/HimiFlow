@@ -45,6 +45,9 @@ public sealed class SqliteBackupServiceTests
             Assert.IsTrue(File.Exists(backup.FullPath));
             Assert.IsTrue(backup.SizeBytes > 0);
             Assert.AreEqual(1, service.List().Count);
+            var validation = await service.ValidateAsync(backup.FullPath);
+            Assert.IsTrue(validation.IsValid);
+            Assert.AreEqual("ok", validation.Result);
         }
         finally
         {
@@ -53,6 +56,48 @@ public sealed class SqliteBackupServiceTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    [TestMethod]
+    public async Task ValidateAsync_RejectsNonSqliteFile()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"HimiFlow-backup-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var invalidPath = Path.Combine(root, "invalid.db");
+            await File.WriteAllTextAsync(invalidPath, "not a sqlite database");
+            var service = CreateService(root, Path.Combine(root, "source.db"));
+
+            var validation = await service.ValidateAsync(invalidPath);
+
+            Assert.IsFalse(validation.IsValid);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    private static SqliteBackupService CreateService(string root, string databasePath)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = $"Data Source={databasePath}",
+                ["Database:Provider"] = "SQLite",
+                ["Backup:Directory"] = "backups"
+            })
+            .Build();
+
+        return new SqliteBackupService(
+            configuration,
+            new TestHostEnvironment(root),
+            NullLogger<SqliteBackupService>.Instance);
     }
 
     private sealed class TestHostEnvironment : IHostEnvironment

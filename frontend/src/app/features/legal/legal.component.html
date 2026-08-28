@@ -1,0 +1,76 @@
+<main class="legal-page">
+  <section class="legal-card">
+    <a routerLink="/login" class="back-link">← Zur Anmeldung</a>
+
+    <header>
+      <p class="eyebrow">Anbieter und Rechtliches</p>
+      <h1>{{ productInfo()?.productName || 'HimiFlow Einsparungsdatenbank' }}</h1>
+      @if (productInfo()) {
+        <p>{{ productInfo()!.edition }} · Version {{ productInfo()!.version }}</p>
+      }
+    </header>
+
+    @if (loadFailed()) {
+      <div class="notice error" role="alert">
+        Die Anbieterinformationen konnten nicht geladen werden.
+      </div>
+    } @else if (!productInfo()) {
+      <div class="notice" role="status">Anbieterinformationen werden geladen …</div>
+    } @else if (!productInfo()!.legalNotice.isConfigured) {
+      <div class="notice warning" role="status">
+        Die rechtlichen Anbieterangaben sind für diese Installation noch nicht vollständig konfiguriert.
+        Vor einem Kundenbetrieb müssen Firmenname, ladungsfähige Anschrift und Kontakt über die
+        Betriebskonfiguration hinterlegt werden.
+      </div>
+    } @else {
+      <section>
+        <h2>Anbieter</h2>
+        <p>
+          <strong>{{ productInfo()!.legalNotice.providerName }}</strong>
+          @if (productInfo()!.legalNotice.legalForm) {
+            <br />{{ productInfo()!.legalNotice.legalForm }}
+          }
+          @for (line of productInfo()!.legalNotice.addressLines; track line) {
+            <br />{{ line }}
+          }
+        </p>
+
+        <dl>
+          @if (productInfo()!.legalNotice.email) {
+            <dt>E-Mail</dt>
+            <dd><a [href]="'mailto:' + productInfo()!.legalNotice.email">{{ productInfo()!.legalNotice.email }}</a></dd>
+          }
+          @if (productInfo()!.legalNotice.phone) {
+            <dt>Telefon</dt>
+            <dd>{{ productInfo()!.legalNotice.phone }}</dd>
+          }
+          @if (productInfo()!.legalNotice.website) {
+            <dt>Website</dt>
+            <dd>{{ productInfo()!.legalNotice.website }}</dd>
+          }
+          @if (productInfo()!.legalNotice.registerNumber) {
+            <dt>Register</dt>
+            <dd>{{ productInfo()!.legalNotice.registerCourt }} {{ productInfo()!.legalNotice.registerNumber }}</dd>
+          }
+          @if (productInfo()!.legalNotice.vatId) {
+            <dt>Umsatzsteuer-ID</dt>
+            <dd>{{ productInfo()!.legalNotice.vatId }}</dd>
+          }
+          @if (productInfo()!.legalNotice.privacyContact) {
+            <dt>Datenschutzkontakt</dt>
+            <dd>{{ productInfo()!.legalNotice.privacyContact }}</dd>
+          }
+        </dl>
+      </section>
+    }
+
+    <section>
+      <h2>Datenschutz im Kundenbetrieb</h2>
+      <p>
+        Der jeweilige Betreiber der Installation legt Zwecke, Rechtsgrundlage, Aufbewahrungsfristen
+        und Betroffeneninformationen fest. HimiFlow stellt dafür rollenbasierte Zugriffe,
+        Auditierung, maskierte Exporte und lokale Backupfunktionen bereit.
+      </p>
+    </section>
+  </section>
+</main>

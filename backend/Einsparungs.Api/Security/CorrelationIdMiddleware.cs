@@ -2,7 +2,7 @@ namespace Einsparungs.Api.Security;
 
 public sealed class CorrelationIdMiddleware
 {
-    private const string HeaderName = "X-Correlation-ID";
+    public const string HeaderName = "X-Correlation-ID";
     private readonly RequestDelegate next;
     private readonly ILogger<CorrelationIdMiddleware> logger;
 

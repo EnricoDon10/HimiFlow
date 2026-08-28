@@ -1,0 +1,70 @@
+name: HimiFlow CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: himiflow-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend Build und Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: .NET 8 einrichten
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Abhängigkeiten wiederherstellen
+        run: dotnet restore backend/EinsparungsApp.sln
+
+      - name: Release-Build
+        run: dotnet build backend/EinsparungsApp.sln --configuration Release --no-restore
+
+      - name: Tests
+        run: dotnet test backend/EinsparungsApp.sln --configuration Release --no-build
+
+  frontend:
+    name: Frontend Build, Tests und Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm 11 verwenden
+        run: npm install --global npm@11.16.0
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Frontend testen
+        run: npm run test:ci
+
+      - name: Production-Build
+        run: npm run build -- --configuration production
+
+      - name: Abhängigkeiten auf hohe Risiken prüfen
+        run: npm audit --audit-level=high

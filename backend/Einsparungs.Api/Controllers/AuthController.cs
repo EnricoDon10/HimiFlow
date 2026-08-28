@@ -20,20 +20,26 @@ public sealed class AuthController : ControllerBase
     private readonly UserManager<AppUser> userManager;
     private readonly SignInManager<AppUser> signInManager;
     private readonly IAntiforgery antiforgery;
-    private readonly IWebHostEnvironment environment;
+    private readonly ILogger<AuthController> logger;
+    private readonly bool requireHttps;
 
     public AuthController(
         AppDbContext db,
         UserManager<AppUser> userManager,
         SignInManager<AppUser> signInManager,
         IAntiforgery antiforgery,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IConfiguration configuration,
+        ILogger<AuthController> logger)
     {
         this.db = db;
         this.userManager = userManager;
         this.signInManager = signInManager;
         this.antiforgery = antiforgery;
-        this.environment = environment;
+        this.logger = logger;
+        requireHttps = configuration.GetValue(
+            "Security:RequireHttps",
+            !environment.IsDevelopment());
     }
 
     [HttpGet("csrf")]
@@ -55,7 +61,7 @@ public sealed class AuthController : ControllerBase
 
         if (user is null || !user.IsActive || user.IsDeleted)
         {
-            return InvalidLogin();
+            return InvalidLogin(userName);
         }
 
         var result = await signInManager.CheckPasswordSignInAsync(
@@ -65,10 +71,16 @@ public sealed class AuthController : ControllerBase
 
         if (!result.Succeeded)
         {
-            return InvalidLogin();
+            return InvalidLogin(userName);
         }
 
         await signInManager.SignInAsync(user, isPersistent: false);
+        AddAuthenticationAudit(user.Id, "LoginSucceeded");
+        await db.SaveChangesAsync();
+        logger.LogInformation(
+            "Benutzer {UserId} wurde erfolgreich angemeldet. ClientIp: {ClientIp}",
+            user.Id,
+            HttpContext.Connection.RemoteIpAddress?.ToString());
         // Antiforgery tokens are bound to the current principal. Refresh the
         // token after the anonymous login request has established the cookie.
         IssueReadableAntiforgeryToken();
@@ -134,6 +146,9 @@ public sealed class AuthController : ControllerBase
 
         await userManager.UpdateSecurityStampAsync(user);
         await signInManager.RefreshSignInAsync(user);
+        AddAuthenticationAudit(user.Id, "PasswordChanged");
+        await db.SaveChangesAsync();
+        logger.LogInformation("Passwort für Benutzer {UserId} wurde geändert.", user.Id);
 
         return Ok(await CreateLoginResponseAsync(user));
     }
@@ -142,13 +157,25 @@ public sealed class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Logout()
     {
+        var user = await userManager.GetUserAsync(User);
+        if (user is not null)
+        {
+            AddAuthenticationAudit(user.Id, "Logout");
+            await db.SaveChangesAsync();
+        }
+
         await signInManager.SignOutAsync();
         Response.Cookies.Delete(ReadableAntiforgeryCookieName, new CookieOptions { Path = "/" });
         return NoContent();
     }
 
-    private UnauthorizedObjectResult InvalidLogin()
+    private UnauthorizedObjectResult InvalidLogin(string userName)
     {
+        logger.LogWarning(
+            "Anmeldung für Benutzername {UserName} wurde abgelehnt. ClientIp: {ClientIp}",
+            userName,
+            HttpContext.Connection.RemoteIpAddress?.ToString());
+
         return Unauthorized(new ProblemDetails
         {
             Status = StatusCodes.Status401Unauthorized,
@@ -170,8 +197,22 @@ public sealed class AuthController : ControllerBase
                 IsEssential = true,
                 Path = "/",
                 SameSite = SameSiteMode.Strict,
-                Secure = !environment.IsDevelopment()
+                Secure = requireHttps
             });
+    }
+
+    private void AddAuthenticationAudit(Guid userId, string action)
+    {
+        db.AuditLogs.Add(new AuditLog
+        {
+            EntityName = "Authentication",
+            EntityId = userId.ToString(),
+            Action = action,
+            ChangedByUserId = userId,
+            ChangedAt = DateTime.UtcNow,
+            ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString()
+        });
     }
 
     private async Task<LoginResponse> CreateLoginResponseAsync(AppUser user)

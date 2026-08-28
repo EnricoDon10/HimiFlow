@@ -117,7 +117,9 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
                 table.HasCheckConstraint("CK_SavingsEntry_OldKvAmount_NotNegative", "OldKvAmount >= 0");
                 table.HasCheckConstraint("CK_SavingsEntry_NewKvAmount_NotNegative", "NewKvAmount >= 0");
                 table.HasCheckConstraint("CK_SavingsEntry_NewKvAmount_LessOrEqual_OldKvAmount", "NewKvAmount <= OldKvAmount");
-                table.HasCheckConstraint("CK_SavingsEntry_Kvnr_Length", "length(Kvnr) = 10");
+                table.HasCheckConstraint(
+                    "CK_SavingsEntry_Kvnr_Length",
+                    Database.IsSqlServer() ? "LEN([Kvnr]) = 10" : "length(Kvnr) = 10");
             });
 
         modelBuilder.Entity<AuditLog>()

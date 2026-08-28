@@ -14,6 +14,10 @@ import { ChangePasswordComponent } from './features/change-password/change-passw
 
 export const routes: Routes = [
   {
+    path: 'legal',
+    loadComponent: () => import('./features/legal/legal.component').then((m) => m.LegalComponent)
+  },
+  {
     path: 'login',
     component: LoginComponent,
     canActivate: [guestGuard]

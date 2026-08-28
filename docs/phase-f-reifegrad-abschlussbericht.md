@@ -1,5 +1,7 @@
 # HimiFlow – Phase-F-Reifegrad- und Abschlussbericht
 
+> Historischer Abschlussstand Reifegrad 3. Der aktuelle, maßgebliche Stand ist der [Reifegrad-4-Abschlussbericht](reifegrad-4-abschlussbericht.md).
+
 Stand: 28.08.2026  
 Bewertung: lokaler SQLite-Betrieb auf dem Entwicklerrechner
 

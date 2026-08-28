@@ -128,10 +128,15 @@
   padding: 0.8rem;
 }
 
-.demo-users {
+.login-footer {
   margin-top: 1.5rem;
-  display: grid;
-  gap: 0.3rem;
-  color: #555555;
-  font-size: 0.9rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eeeeec;
+  text-align: center;
+
+  a {
+    color: #9a3412;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
 }

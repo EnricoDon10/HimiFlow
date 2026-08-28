@@ -1,6 +1,6 @@
 # Einsparungsdatenbank
 
-> Lokaler Phase-E-Prototyp: SQLite, Cookie-/CSRF-Authentifizierung, Rollenverwaltung, Offline-Lizenzstatus mit 30-Tage-Grace-Period, Health-Check, SQLite-Backups, Datenschutzmaßnahmen für Exporte und administrative Audit-Metadaten. Die spätere SQL-Server-/Cluster- und SSO-Integration bleibt bewusst offen.
+> **Reifegrad 4/5:** vorproduktions- und verkaufsvorbereitungsreife Local Edition mit SQLite, Cookie-/CSRF-Authentifizierung, lokaler Rollenverwaltung, Offline-Jahreslizenz mit 30-Tage-Grace-Period, HTTPS-Härtung, vereinheitlichter Fehlerbehandlung, täglichen integritätsgeprüften Backups, SBOM und Betriebs-/Datenschutzdokumentation. SQL Server, Kunden-PKI und Ziel-VM folgen ausschließlich in der Phase Inbetriebnahme.
 ---
 
 > **Phase D:** Der lokale SQLite-Betrieb bleibt erhalten. Für eine kontrollierte Veröffentlichung sind getrennte `--migrate`/`--seed`-Schritte, Liveness-/Readiness-Endpunkte und Skripte unter [`deploy/`](deploy/) ergänzt. Die spätere SQL-Server-/Cluster-Migration wird erst in einer eigenen provider-spezifischen Phase durchgeführt.
@@ -8,6 +8,8 @@
 > **Phase E:** KVNRs werden in CSV-/Excel-Exporten standardmäßig maskiert. Administrative Audit-Einträge können systemseitig paginiert abgefragt werden, ohne fachliche Snapshot-Werte offenzulegen. Exportantworten werden nicht im Browser-Cache gespeichert.
 
 > **Phase F:** Die lokale Edition ist technisch abgenommen und als kontrollierter MVP-/Pilotbetrieb bewertet. Der vollständige Reifegrad und die bewussten Grenzen stehen im [Phase-F-Reifegrad- und Abschlussbericht](docs/phase-f-reifegrad-abschlussbericht.md).
+
+> **Reifegrad 4:** Die anschließende Produkthärtung ist im [aktuellen Reifegrad-4-Abschlussbericht](docs/reifegrad-4-abschlussbericht.md) dokumentiert. Maßgebliche Detailunterlagen: [Backend-Betrieb](docs/backend-betriebsdokumentation.md), [Login/Passwort](docs/login-und-passwortkonzept.md), [Backup/Restore](docs/backup-und-restore-konzept.md), [Datenschutz/Berechtigungen](docs/datenschutz-und-berechtigungskonzept.md) und [Recht/Vertrag](docs/rechtliche-und-vertragliche-checkliste.md).
 
 ## Projektbeschreibung
 
@@ -258,9 +260,9 @@ Dadurch wird verhindert, dass reguläre Mitarbeiter Datenbestände exportieren k
 
 ## Technisches Zielbild
 
-Der aktuelle Projektstand ist ein lokaler Prototyp. Das Backend wurde mit ASP.NET Core umgesetzt und verwendet SQLite als lokale Entwicklungsdatenbank. Dadurch kann die Anwendung ohne zusätzliche Datenbankinstallation lokal betrieben und getestet werden.
+Der aktuelle Projektstand ist eine gehärtete Local Edition auf Reifegrad 4. Das Backend wurde mit ASP.NET Core umgesetzt und verwendet bewusst SQLite, damit die Anwendung ohne zusätzliche Datenbankinstallation lokal betrieben und geprüft werden kann.
 
-Langfristig ist vorgesehen, die Anwendung in eine interne Infrastruktur zu überführen. Dafür ist perspektivisch eine Migration auf SQL Server vorgesehen. Die Anwendung ist so aufgebaut, dass Datenmodell, API-Struktur und Rollenlogik später weiter ausgebaut und auf eine produktionsnahe Umgebung übertragen werden können.
+In der Phase Inbetriebnahme wird die Anwendung in die Kundeninfrastruktur überführt. Der SQL-Server-Provider ist im Code vorbereitet; eine eigene SQL-Server-Migrationshistorie, Kunden-PKI, Firewall-/Proxy-Konfiguration und Abnahme werden bewusst erst in der tatsächlichen Zielumgebung umgesetzt.
 
 Das geplante Zielbild ist eine interne Webanwendung mit:
 
@@ -312,7 +314,7 @@ Organisatorischer Nutzen:
 
 ## Projektstatus
 
-Der aktuelle Projektstand ist die in Phase F abgenommene lokale MVP-/Pilot-Edition. Backend und Angular-Frontend sind für einen kontrollierten lokalen Betrieb vorbereitet; die vollständige Bewertung steht im [Phase-F-Reifegrad- und Abschlussbericht](docs/phase-f-reifegrad-abschlussbericht.md).
+Der aktuelle Projektstand ist die gehärtete Local Edition auf **Reifegrad 4 von 5**. Backend und Angular-Frontend sind vorproduktions- und inbetriebnahmebereit; die vollständige Bewertung steht im [Reifegrad-4-Abschlussbericht](docs/reifegrad-4-abschlussbericht.md).
 
 Umgesetzt sind:
 
@@ -330,6 +332,12 @@ Umgesetzt sind:
 * Exportbeschränkung auf Fach-Admins
 * AuditLogging bei Erstellung, Änderung, Löschung und Exporten
 * KVNR-Maskierung in Exporten und technische Audit-Metadaten ohne Snapshot-Werte
-* reproduzierbare lokale Deployment-, Health- und Backup-Schritte
+* reproduzierbare Deployment-, Health-, Backup- und Restore-Schritte
+* automatische tägliche SQLite-Backups mit Integritätsprüfung und Retention
+* HTTPS-/Reverse-Proxy-Härtung für ein Zertifikat aus der Kunden-PKI
+* einheitliche ProblemDetails-Fehlerantworten mit Trace-ID
+* vorbereiteter SQL-Server-Provider mit sicherer Sperre der SQLite-Migrationen
+* CI, automatisierte Tests, CycloneDX-SBOM und Drittanbieterhinweise
+* öffentliche, konfigurierbare Produkt-/Anbieterseite
 
-Die lokale Edition ist damit kontrolliert pilotfähig. Rechtliche Datenschutzfreigaben, verschlüsselte Daten-/Backup-Ziele und optionale Enterprise-Integrationen bleiben bewusst separate Ausbaustufen.
+Die Local Edition ist damit verkaufsvorbereitungs- und vorproduktionsreif. Rechtliche Lizenz-/Vertragsfreigabe und die kundenspezifische SQL-Server-, PKI-, Zielsystem- und Produktivabnahme bleiben klar abgegrenzte Gates zur Stufe 5.

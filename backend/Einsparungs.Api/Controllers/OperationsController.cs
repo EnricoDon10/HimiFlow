@@ -15,11 +15,37 @@ public sealed class OperationsController : ControllerBase
 {
     private readonly SqliteBackupService backupService;
     private readonly AppDbContext db;
+    private readonly IConfiguration configuration;
 
-    public OperationsController(SqliteBackupService backupService, AppDbContext db)
+    public OperationsController(
+        SqliteBackupService backupService,
+        AppDbContext db,
+        IConfiguration configuration)
     {
         this.backupService = backupService;
         this.db = db;
+        this.configuration = configuration;
+    }
+
+    [HttpGet("backup-status")]
+    public ActionResult<BackupStatusResponse> GetBackupStatus()
+    {
+        var backups = backupService.List();
+        var latest = backups.FirstOrDefault();
+        var intervalHours = Math.Clamp(configuration.GetValue("Backup:IntervalHours", 24), 1, 168);
+        var automaticEnabled = backupService.IsSqliteProvider &&
+                               configuration.GetValue("Backup:AutomaticEnabled", true);
+
+        return Ok(new BackupStatusResponse(
+            automaticEnabled,
+            intervalHours,
+            configuration.GetValue("Backup:RetentionDays", 30),
+            configuration.GetValue("Backup:MinimumBackupsToKeep", 7),
+            latest?.CreatedAtUtc,
+            automaticEnabled
+                ? latest?.CreatedAtUtc.AddHours(intervalHours) ?? DateTime.UtcNow
+                : null,
+            backups.Count));
     }
 
     [HttpGet("backups")]

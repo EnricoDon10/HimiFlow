@@ -1,6 +1,7 @@
 ﻿using Einsparungs.Api.Data;
 using Einsparungs.Api.DTOs;
 using Einsparungs.Api.Models;
+using Einsparungs.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace Einsparungs.Api.Controllers;
 
 [ApiController]
 [Route("api/statistics")]
-[Authorize]
+[Authorize(Roles = ApplicationRoles.Mitarbeiter + "," + ApplicationRoles.FachAdmin)]
 public class StatisticsController : ControllerBase
 {
     private readonly AppDbContext _db;

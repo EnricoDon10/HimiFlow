@@ -1,5 +1,5 @@
 .app-shell {
-  min-height: 100vh;
+  min-height: 100svh;
   display: grid;
   grid-template-columns: 18rem 1fr;
   background: #F7F7F5;
@@ -110,6 +110,44 @@
   padding: 2rem;
 }
 
+.license-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid #fecaca;
+  border-left: 0.35rem solid #dc2626;
+  border-radius: 0.9rem;
+  background: #fff1f2;
+  color: #991b1b;
+  padding: 0.85rem 1rem;
+
+  &.warning {
+    border-color: #fed7aa;
+    border-left-color: #f58220;
+    background: #fff7ed;
+    color: #9a3412;
+  }
+
+  strong,
+  span {
+    display: block;
+  }
+
+  span {
+    margin-top: 0.2rem;
+    color: inherit;
+    font-size: 0.9rem;
+  }
+
+  a {
+    flex: 0 0 auto;
+    color: inherit;
+    font-weight: 800;
+  }
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -117,5 +155,32 @@
 
   .sidebar {
     position: static;
+    padding: 1rem;
+  }
+
+  .nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .topbar {
+    height: auto;
+    min-height: 4.5rem;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .page-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .nav {
+    grid-template-columns: 1fr;
+  }
+
+  .license-banner {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

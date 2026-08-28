@@ -1,7 +1,10 @@
 ﻿using System.Globalization;
+using System.Security.Claims;
 using System.Text;
 using ClosedXML.Excel;
 using Einsparungs.Api.Data;
+using Einsparungs.Api.Models;
+using Einsparungs.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,14 +13,16 @@ namespace Einsparungs.Api.Controllers;
 
 [ApiController]
 [Route("api/exports")]
-[Authorize(Roles = "Fuehrungskraft,Admin")]
+[Authorize(Roles = ApplicationRoles.FachAdmin)]
 public class ExportsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly bool _maskKvnrInExports;
 
-    public ExportsController(AppDbContext db)
+    public ExportsController(AppDbContext db, IConfiguration configuration)
     {
         _db = db;
+        _maskKvnrInExports = configuration.GetValue("Privacy:MaskKvnrInExports", true);
     }
 
     [HttpGet("savings.csv")]
@@ -28,7 +33,7 @@ public class ExportsController : ControllerBase
         var csv = new StringBuilder();
 
         csv.AppendLine(
-            "Id;Monat;KVNR;Alter KV;Neuer KV;Ersparnis;Team;Einspargrund;Produktgruppe;Uebermittlungsdatum;Erstellt von;Erstellt am;Version"
+            $"Id;Monat;{(_maskKvnrInExports ? "KVNR (maskiert)" : "KVNR")};Alter KV;Neuer KV;Ersparnis;Team;Einspargrund;Produktgruppe;Uebermittlungsdatum;Erstellt von;Erstellt am;Version"
         );
 
         foreach (var row in rows)
@@ -37,7 +42,7 @@ public class ExportsController : ControllerBase
             {
                 Csv(row.Id.ToString()),
                 Csv(row.Month.ToString("MM.yyyy", CultureInfo.GetCultureInfo("de-DE"))),
-                Csv(row.Kvnr),
+                Csv(ExportKvnr(row.Kvnr)),
                 Csv(row.OldKvAmount.ToString("N2", CultureInfo.GetCultureInfo("de-DE"))),
                 Csv(row.NewKvAmount.ToString("N2", CultureInfo.GetCultureInfo("de-DE"))),
                 Csv(row.SavingAmount.ToString("N2", CultureInfo.GetCultureInfo("de-DE"))),
@@ -57,6 +62,9 @@ public class ExportsController : ControllerBase
 
         var fileName = $"einsparungen_{DateTime.UtcNow:yyyyMMdd_HHmmss}.csv";
 
+        await AddExportAuditAsync("Csv", fileName);
+        AddNoStoreHeaders();
+
         return File(bytes, "text/csv; charset=utf-8", fileName);
     }
 
@@ -72,7 +80,7 @@ public class ExportsController : ControllerBase
         {
             "Id",
             "Monat",
-            "KVNR",
+            _maskKvnrInExports ? "KVNR (maskiert)" : "KVNR",
             "Alter KV",
             "Neuer KV",
             "Ersparnis",
@@ -99,7 +107,7 @@ public class ExportsController : ControllerBase
 
             worksheet.Cell(excelRow, 1).Value = row.Id.ToString();
             worksheet.Cell(excelRow, 2).Value = row.Month;
-            worksheet.Cell(excelRow, 3).Value = row.Kvnr;
+            worksheet.Cell(excelRow, 3).Value = ExportKvnr(row.Kvnr);
             worksheet.Cell(excelRow, 4).Value = row.OldKvAmount;
             worksheet.Cell(excelRow, 5).Value = row.NewKvAmount;
             worksheet.Cell(excelRow, 6).Value = row.SavingAmount;
@@ -125,6 +133,9 @@ public class ExportsController : ControllerBase
         workbook.SaveAs(stream);
 
         var fileName = $"einsparungen_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+
+        await AddExportAuditAsync("Excel", fileName);
+        AddNoStoreHeaders();
 
         return File(
             stream.ToArray(),
@@ -163,6 +174,41 @@ public class ExportsController : ControllerBase
     {
         var escaped = value.Replace("\"", "\"\"");
         return $"\"{escaped}\"";
+    }
+
+    private string ExportKvnr(string kvnr)
+    {
+        return _maskKvnrInExports
+            ? PrivacyMasking.MaskKvnr(kvnr)
+            : kvnr;
+    }
+
+    private void AddNoStoreHeaders()
+    {
+        Response.Headers.CacheControl = "no-store";
+        Response.Headers.Pragma = "no-cache";
+    }
+
+    private async Task AddExportAuditAsync(string format, string fileName)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var userId))
+        {
+            return;
+        }
+
+        _db.AuditLogs.Add(new AuditLog
+        {
+            EntityName = "SavingsExport",
+            EntityId = format,
+            Action = "Exported",
+            ChangedByUserId = userId,
+            ChangedAt = DateTime.UtcNow,
+            NewValuesJson = System.Text.Json.JsonSerializer.Serialize(new { format, fileName }),
+            ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString()
+        });
+        await _db.SaveChangesAsync();
     }
 
     private class ExportSavingsRow

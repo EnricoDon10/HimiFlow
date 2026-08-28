@@ -6,6 +6,7 @@ import { ProductGroup, SavingReason, Team } from '../../../core/models/master-da
 import { SavingsEntryResponse } from '../../../core/models/savings-entry.model';
 import { MasterDataService } from '../../../core/services/master-data.service';
 import { SavingsService } from '../../../core/services/savings.service';
+import { LicenseService } from '../../../core/services/license.service';
 
 @Component({
   selector: 'app-savings-create',
@@ -38,7 +39,8 @@ export class SavingsCreateComponent implements OnInit {
 
   constructor(
     private readonly masterDataService: MasterDataService,
-    private readonly savingsService: SavingsService
+    private readonly savingsService: SavingsService,
+    readonly licenseService: LicenseService
   ) {}
 
   ngOnInit(): void {
@@ -149,6 +151,11 @@ export class SavingsCreateComponent implements OnInit {
   }
 
   save(): void {
+    if (this.licenseService.isReadOnly()) {
+      this.errorMessage.set('Die Lizenz ist abgelaufen. Schreibende Funktionen sind derzeit gesperrt.');
+      return;
+    }
+
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.createdEntry.set(null);

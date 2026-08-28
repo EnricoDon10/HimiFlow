@@ -8,15 +8,19 @@
     </div>
 
     <nav class="nav">
-      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-      <a routerLink="/savings/new" routerLinkActive="active">Einsparung erfassen</a>
-      <a routerLink="/savings/my" routerLinkActive="active">Meine Einsparungen</a>
+      @if (canSeeBusinessApp()) {
+        <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+        <a routerLink="/savings/new" routerLinkActive="active">Einsparung erfassen</a>
+        <a routerLink="/savings/my" routerLinkActive="active">Meine Einsparungen</a>
+      }
 
       @if (canSeeAllSavings()) {
         <a routerLink="/savings/all" routerLinkActive="active">Alle Einsparungen</a>
       }
 
-      <a routerLink="/statistics" routerLinkActive="active">Statistik</a>
+      @if (canSeeBusinessApp()) {
+        <a routerLink="/statistics" routerLinkActive="active">Statistik</a>
+      }
 
       @if (canManageProductGroups()) {
         <a routerLink="/admin/product-groups" routerLinkActive="active">
@@ -24,11 +28,14 @@
         </a>
       }
 
-        @if (isAdmin()) {
-          <a routerLink="/admin/users" routerLinkActive="active">
-            Benutzerverwaltung
-          </a>
-        }
+      @if (isAdmin()) {
+        <a routerLink="/admin/users" routerLinkActive="active">
+          Benutzerverwaltung
+        </a>
+        <a routerLink="/admin/license" routerLinkActive="active">
+          Lizenzverwaltung
+        </a>
+      }
     </nav>
     
   </aside>
@@ -44,6 +51,17 @@
     </header>
 
     <main class="page-content">
+      @if (showLicenseBanner()) {
+        <div class="license-banner" [class.warning]="licenseBannerClass() === 'warning'" role="status">
+          <div>
+            <strong>{{ licenseService.status()?.status === 'GRACE_PERIOD' ? 'Lizenz läuft bald ab' : 'Lizenzstatus erfordert Aufmerksamkeit' }}</strong>
+            <span>{{ licenseService.status()?.message || 'Schreibende Funktionen können eingeschränkt sein.' }}</span>
+          </div>
+          @if (isSystemAdmin()) {
+            <a routerLink="/admin/license">Lizenz prüfen</a>
+          }
+        </div>
+      }
       <router-outlet></router-outlet>
     </main>
   </section>

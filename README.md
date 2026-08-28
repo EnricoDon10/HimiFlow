@@ -1,5 +1,13 @@
 # Einsparungsdatenbank
+
+> Lokaler Phase-E-Prototyp: SQLite, Cookie-/CSRF-Authentifizierung, Rollenverwaltung, Offline-Lizenzstatus mit 30-Tage-Grace-Period, Health-Check, SQLite-Backups, Datenschutzmaßnahmen für Exporte und administrative Audit-Metadaten. Die spätere SQL-Server-/Cluster- und SSO-Integration bleibt bewusst offen.
 ---
+
+> **Phase D:** Der lokale SQLite-Betrieb bleibt erhalten. Für eine kontrollierte Veröffentlichung sind getrennte `--migrate`/`--seed`-Schritte, Liveness-/Readiness-Endpunkte und Skripte unter [`deploy/`](deploy/) ergänzt. Die spätere SQL-Server-/Cluster-Migration wird erst in einer eigenen provider-spezifischen Phase durchgeführt.
+
+> **Phase E:** KVNRs werden in CSV-/Excel-Exporten standardmäßig maskiert. Administrative Audit-Einträge können systemseitig paginiert abgefragt werden, ohne fachliche Snapshot-Werte offenzulegen. Exportantworten werden nicht im Browser-Cache gespeichert.
+
+> **Phase F:** Die lokale Edition ist technisch abgenommen und als kontrollierter MVP-/Pilotbetrieb bewertet. Der vollständige Reifegrad und die bewussten Grenzen stehen im [Phase-F-Reifegrad- und Abschlussbericht](docs/phase-f-reifegrad-abschlussbericht.md).
 
 ## Projektbeschreibung
 
@@ -80,7 +88,7 @@ Die Anwendung soll insbesondere folgende Ziele erfüllen:
    Pflichtfelder, Betragsregeln, KVNR-Länge und die automatische Berechnung der Ersparnis werden serverseitig geprüft. Dadurch wird die Datenqualität verbessert.
 
 4. **Rollenbasierte Berechtigungen**
-   Mitarbeiter, Führungskräfte und Administratoren erhalten unterschiedliche Rechte. Dadurch wird sichergestellt, dass Benutzer nur die Daten und Funktionen sehen oder verwenden können, für die sie berechtigt sind.
+   Mitarbeiter, Fach-Admins (Führungskräfte) und System-Admins (IT-Administration) erhalten klar getrennte Rechte. Dadurch sieht jeder Benutzer nur die Daten und Funktionen, die für seine Aufgabe erforderlich sind.
 
 5. **Nachvollziehbarkeit von Änderungen**
    Änderungen an Einsparungsdatensätzen werden historisiert. Dadurch kann nachvollzogen werden, wann ein Datensatz erstellt, geändert oder gelöscht wurde und welcher Benutzer die Änderung vorgenommen hat.
@@ -89,7 +97,7 @@ Die Anwendung soll insbesondere folgende Ziele erfüllen:
    Die Anwendung stellt globale Auswertungen bereit, beispielsweise nach Monat, Team, Einspargrund oder Produktgruppe.
 
 7. **Kontrollierter Export**
-   CSV- und Excel-Exporte sollen nur Führungskräften und Administratoren zur Verfügung stehen. Normale Mitarbeiter sind nicht exportberechtigt.
+   CSV- und Excel-Exporte stehen ausschließlich Fach-Admins zur Verfügung. Normale Mitarbeiter und System-Admins erhalten keinen fachlichen Exportzugriff.
 
 8. **Vorbereitung auf spätere produktionsnahe Nutzung**
    Der aktuelle Prototyp läuft lokal mit SQLite. Die Architektur ist aber so aufgebaut, dass später eine Migration auf SQL Server und ein Betrieb auf einer internen VM oder Serverumgebung möglich ist.
@@ -102,7 +110,7 @@ Der digitalisierte Prozess beginnt mit der Anmeldung eines Benutzers. Nach erfol
 
 Ein Mitarbeiter kann eigene Einsparungsfälle erfassen und verwalten. Dabei wählt er die relevanten Stammdaten wie Team, Einspargrund und Produktgruppe aus und gibt die fachlichen Beträge ein. Die Anwendung prüft automatisch, ob die Eingaben gültig sind. Insbesondere wird geprüft, dass der neue KV-Betrag nicht größer als der alte KV-Betrag ist und dass keine negativen Beträge erfasst werden.
 
-Führungskräfte und Administratoren erhalten einen erweiterten Blick auf alle Datensätze. Sie können alle Einsparungsfälle einsehen, bearbeiten, löschen und exportieren. Damit können sie Auswertungen für Teams, Zeiträume oder fachliche Gründe erstellen und die Daten für weitere interne Berichts- oder Controllingprozesse verwenden.
+Fach-Admins (Führungskräfte) erhalten einen erweiterten Blick auf alle Datensätze. Sie können alle Einsparungsfälle einsehen, bearbeiten, löschen und exportieren. System-Admins verwalten dagegen Benutzer und Rollen, sehen aber keine fachlichen Einsparungsdaten.
 
 Die Statistikfunktion ist für alle angemeldeten Benutzer sichtbar. Damit erhalten auch Mitarbeiter Transparenz über globale Einsparungsentwicklungen, ohne dass sie Zugriff auf Exportfunktionen erhalten.
 
@@ -132,7 +140,7 @@ Mitarbeiter dürfen nicht:
 * Excel-Exporte durchführen
 * administrative Funktionen ausführen
 
-### Führungskraft
+### Fach-Admin (Führungskraft)
 
 Führungskräfte besitzen erweiterte Rechte zur fachlichen Steuerung und Kontrolle.
 
@@ -146,19 +154,19 @@ Führungskräfte dürfen:
 * CSV-Exporte aller Datensätze durchführen
 * Excel-Exporte aller Datensätze durchführen
 
-### Admin
+### System-Admin (IT-Admin)
 
-Administratoren besitzen dieselben fachlichen Datenrechte wie Führungskräfte und können perspektivisch zusätzlich für technische oder administrative Funktionen erweitert werden.
+System-Admins besitzen ausschließlich technische und administrative Rechte.
 
-Admins dürfen:
+System-Admins dürfen:
 
 * sich anmelden
-* alle Einsparungsdatensätze anzeigen
-* alle Einsparungsdatensätze bearbeiten
-* alle Einsparungsdatensätze löschen
-* globale Statistiken anzeigen
-* CSV-Exporte aller Datensätze durchführen
-* Excel-Exporte aller Datensätze durchführen
+* Benutzer anlegen, aktivieren, deaktivieren und löschen
+* Rollen vergeben und Passwörter zurücksetzen
+
+System-Admins dürfen nicht:
+
+* fachliche Einsparungsdatensätze anzeigen oder exportieren
 
 ---
 
@@ -235,8 +243,7 @@ Die Anwendung enthält eine Exportfunktion für CSV und Excel. Diese Funktion is
 Exportberechtigt sind ausschließlich:
 
 ```text
-Führungskräfte
-Admins
+Fach-Admins (Führungskräfte)
 ```
 
 Nicht exportberechtigt sind:
@@ -245,7 +252,7 @@ Nicht exportberechtigt sind:
 Mitarbeiter
 ```
 
-Dadurch wird verhindert, dass reguläre Mitarbeiter Datenbestände exportieren können. Führungskräfte und Administratoren können hingegen vollständige Datenexporte für Auswertung, Qualitätssicherung oder Weiterverarbeitung erzeugen.
+Dadurch wird verhindert, dass reguläre Mitarbeiter Datenbestände exportieren können. Fach-Admins können Exporte für Auswertung und Qualitätssicherung erzeugen; KVNRs sind darin standardmäßig maskiert und die Antworten werden nicht im Browser-Cache gespeichert.
 
 ---
 
@@ -305,7 +312,7 @@ Organisatorischer Nutzen:
 
 ## Projektstatus
 
-Der aktuelle Projektstand umfasst das fertiggestellte Backend des Prototyps.
+Der aktuelle Projektstand ist die in Phase F abgenommene lokale MVP-/Pilot-Edition. Backend und Angular-Frontend sind für einen kontrollierten lokalen Betrieb vorbereitet; die vollständige Bewertung steht im [Phase-F-Reifegrad- und Abschlussbericht](docs/phase-f-reifegrad-abschlussbericht.md).
 
 Umgesetzt sind:
 
@@ -313,14 +320,16 @@ Umgesetzt sind:
 * lokale SQLite-Datenbank
 * Entity-Framework-Migrationen
 * automatische Stammdatenanlage
-* Demo-Benutzer
-* Login mit JWT
+* lokale Benutzerverwaltung mit SystemAdmin, FachAdmin und Mitarbeiter
+* Login mit ASP.NET Core Identity, HttpOnly-Cookie und CSRF-Schutz
 * Rollenprüfung
 * Stammdaten-API
 * Einsparungs-Fach-API
 * Statistik-API
 * CSV- und Excel-Export
-* Exportbeschränkung auf Führungskraft und Admin
-* AuditLogging bei Erstellung, Änderung und Löschung
+* Exportbeschränkung auf Fach-Admins
+* AuditLogging bei Erstellung, Änderung, Löschung und Exporten
+* KVNR-Maskierung in Exporten und technische Audit-Metadaten ohne Snapshot-Werte
+* reproduzierbare lokale Deployment-, Health- und Backup-Schritte
 
-Der nächste Projektabschnitt ist die Entwicklung des Angular-Frontends. Dieses Frontend soll die bestehende Backend-Funktionalität über eine klickbare Oberfläche nutzbar machen.
+Die lokale Edition ist damit kontrolliert pilotfähig. Rechtliche Datenschutzfreigaben, verschlüsselte Daten-/Backup-Ziele und optionale Enterprise-Integrationen bleiben bewusst separate Ausbaustufen.

@@ -1,35 +1,57 @@
-﻿using Einsparungs.Api.Models;
+using Einsparungs.Api.Models;
+using Einsparungs.Api.Security;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Einsparungs.Api.Data;
 
 public static class DatabaseSeeder
 {
-    public static async Task SeedAsync(AppDbContext db)
+    public static async Task SeedAsync(
+        AppDbContext db,
+        UserManager<AppUser> userManager,
+        IConfiguration configuration,
+        bool applyMigrations = true,
+        bool seedReferenceData = true)
     {
-        await db.Database.MigrateAsync();
+        if (applyMigrations)
+        {
+            await db.Database.MigrateAsync();
+        }
 
+        if (seedReferenceData)
+        {
+            await SeedReferenceDataAsync(db);
+        }
+
+        await EnsureInitialSystemAdminAsync(db, userManager, configuration);
+    }
+
+    public static async Task SeedReferenceDataAsync(AppDbContext db)
+    {
         await SeedRolesAsync(db);
         await SeedTeamsAsync(db);
         await SeedSavingReasonsAsync(db);
         await SeedProductGroupsAsync(db);
-        await SeedUsersAsync(db);
-        await UpdateExistingDemoUsersAsync(db);
     }
 
     private static async Task SeedRolesAsync(AppDbContext db)
     {
-        if (await db.Roles.AnyAsync())
+        var existingRoleNames = await db.Roles
+            .Select(role => role.Name)
+            .ToListAsync();
+
+        var missingRoles = ApplicationRoles.All
+            .Where(roleName => !existingRoleNames.Contains(roleName, StringComparer.Ordinal))
+            .Select(roleName => new AppRole { Name = roleName })
+            .ToList();
+
+        if (missingRoles.Count == 0)
         {
             return;
         }
 
-        db.Roles.AddRange(
-            new AppRole { Name = "Mitarbeiter" },
-            new AppRole { Name = "Fuehrungskraft" },
-            new AppRole { Name = "Admin" }
-        );
-
+        db.Roles.AddRange(missingRoles);
         await db.SaveChangesAsync();
     }
 
@@ -89,125 +111,60 @@ public static class DatabaseSeeder
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedUsersAsync(AppDbContext db)
+    private static async Task EnsureInitialSystemAdminAsync(
+        AppDbContext db,
+        UserManager<AppUser> userManager,
+        IConfiguration configuration)
     {
+        var hasActiveSystemAdmin = await db.Users.AnyAsync(user =>
+            user.IsActive &&
+            !user.IsDeleted &&
+            user.UserRoles.Any(userRole => userRole.AppRole.Name == ApplicationRoles.SystemAdmin));
+
+        if (hasActiveSystemAdmin)
+        {
+            return;
+        }
+
         if (await db.Users.AnyAsync())
         {
-            return;
+            throw new InvalidOperationException(
+                "No active SystemAdmin exists. Restore or assign a SystemAdmin before starting HimiFlow.");
         }
 
-        var mitarbeiterRole = await db.Roles.SingleAsync(x => x.Name == "Mitarbeiter");
-        var fuehrungskraftRole = await db.Roles.SingleAsync(x => x.Name == "Fuehrungskraft");
-        var adminRole = await db.Roles.SingleAsync(x => x.Name == "Admin");
+        var temporaryPassword = configuration["InitialAdmin:TemporaryPassword"];
 
-        var bochum1 = await db.Teams.SingleAsync(x => x.Code == "3410");
-        var bochum2 = await db.Teams.SingleAsync(x => x.Code == "3420");
-        var bochum3 = await db.Teams.SingleAsync(x => x.Code == "3430");
-
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword("Demo123!");
-
-        var enrico = new AppUser
+        if (string.IsNullOrWhiteSpace(temporaryPassword))
         {
-            UserName = "enrico.mancuso",
-            DisplayName = "Enrico Mancuso",
-            PasswordHash = passwordHash,
-            TeamId = bochum1.Id
-        };
-
-        var daniel = new AppUser
-        {
-            UserName = "daniel.beck",
-            DisplayName = "Daniel Beck",
-            PasswordHash = passwordHash,
-            TeamId = bochum2.Id
-        };
-
-        var marco = new AppUser
-        {
-            UserName = "marco.meyer",
-            DisplayName = "Marco Meyer",
-            PasswordHash = passwordHash,
-            TeamId = bochum3.Id
-        };
-
-        var admin = new AppUser
-        {
-            UserName = "admin",
-            DisplayName = "IT Admin Demo",
-            PasswordHash = passwordHash
-        };
-
-        db.Users.AddRange(enrico, daniel, marco, admin);
-
-        db.UserRoles.AddRange(
-            new AppUserRole { AppUser = enrico, AppRole = mitarbeiterRole },
-            new AppUserRole { AppUser = daniel, AppRole = mitarbeiterRole },
-            new AppUserRole { AppUser = marco, AppRole = fuehrungskraftRole },
-            new AppUserRole { AppUser = admin, AppRole = adminRole }
-        );
-
-        await db.SaveChangesAsync();
-    }
-
-    private static async Task UpdateExistingDemoUsersAsync(AppDbContext db)
-    {
-        var demoPasswordHash = BCrypt.Net.BCrypt.HashPassword("Demo123!");
-
-        await UpdateDemoUserAsync(db, "mitarbeiter1", "enrico.mancuso", "Enrico Mancuso", demoPasswordHash);
-        await UpdateDemoUserAsync(db, "mitarbeiter2", "daniel.beck", "Daniel Beck", demoPasswordHash);
-        await UpdateDemoUserAsync(db, "teamleiter", "marco.meyer", "Marco Meyer", demoPasswordHash);
-        await UpdateDemoUserAsync(db, "admin", "admin", "IT Admin Demo", demoPasswordHash);
-        await ResetDemoUserPasswordAsync(db, "001443", "Enrico Mancuso", demoPasswordHash);
-        await ResetDemoUserPasswordAsync(db, "001444", "Marco Meyer", demoPasswordHash);
-        await ResetDemoUserPasswordAsync(db, "001445", "Daniel Beck", demoPasswordHash);
-    }
-
-    private static async Task UpdateDemoUserAsync(
-        AppDbContext db,
-        string oldUserName,
-        string newUserName,
-        string newDisplayName,
-        string passwordHash)
-    {
-        var existingTargetUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == newUserName);
-
-        if (existingTargetUser is not null)
-        {
-            existingTargetUser.DisplayName = newDisplayName;
-            existingTargetUser.PasswordHash = passwordHash;
-            await db.SaveChangesAsync();
-            return;
+            throw new InvalidOperationException(
+                "InitialAdmin:TemporaryPassword is required for the first database setup. Configure it with .NET User Secrets.");
         }
 
-        var oldDemoUser = await db.Users.FirstOrDefaultAsync(x => x.UserName == oldUserName);
-
-        if (oldDemoUser is null)
+        var user = new AppUser
         {
-            return;
+            UserName = configuration["InitialAdmin:UserName"]?.Trim() ?? "admin",
+            DisplayName = configuration["InitialAdmin:DisplayName"]?.Trim() ?? "IT Admin",
+            MustChangePassword = true,
+            PasswordChangedAt = null,
+            IsActive = true
+        };
+
+        var creationResult = await userManager.CreateAsync(user, temporaryPassword);
+
+        if (!creationResult.Succeeded)
+        {
+            var errors = string.Join(" ", creationResult.Errors.Select(error => error.Description));
+            throw new InvalidOperationException($"The initial SystemAdmin could not be created. {errors}");
         }
 
-        oldDemoUser.UserName = newUserName;
-        oldDemoUser.DisplayName = newDisplayName;
-        oldDemoUser.PasswordHash = passwordHash;
+        var systemAdminRole = await db.Roles
+            .SingleAsync(role => role.Name == ApplicationRoles.SystemAdmin);
 
-        await db.SaveChangesAsync();
-    }
-
-    private static async Task ResetDemoUserPasswordAsync(
-        AppDbContext db,
-        string userName,
-        string displayName,
-        string passwordHash)
-    {
-        var user = await db.Users.FirstOrDefaultAsync(x => x.UserName == userName);
-
-        if (user is null)
+        db.UserRoles.Add(new AppUserRole
         {
-            return;
-        }
-
-        user.DisplayName = displayName;
-        user.PasswordHash = passwordHash;
+            AppUserId = user.Id,
+            AppRoleId = systemAdminRole.Id
+        });
 
         await db.SaveChangesAsync();
     }

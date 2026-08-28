@@ -23,6 +23,77 @@ Sie dient dazu, dass Administratoren, Entwickler, technische Betreuer und späte
 
 Die Dokumentation bezieht sich auf den aktuellen Entwicklungsstand des Backends im lokalen Prototyp.
 
+> **Maßgeblicher Stand Phase F (28.08.2026):** Die Anwendung verwendet weiterhin lokale SQLite und ASP.NET Core Identity mit einer HttpOnly-Authentifizierungscookie (`HimiFlow.Auth`). Schreibende API-Aufrufe werden zusätzlich über einen CSRF-Token (`XSRF-TOKEN` / Header `X-XSRF-TOKEN`) geschützt. Die lokale Offline-Lizenz, der Health-Check, SQLite-Backups und die administrative Auditierung sind ergänzt. Migrationen können für einen kontrollierten Deployment-Schritt explizit mit `--migrate` bzw. `--seed` ausgeführt werden; im Produktionsprofil werden sie nicht automatisch beim API-Start angewendet. KVNRs werden in Exporten standardmäßig maskiert, Exportantworten tragen `Cache-Control: no-store`, und System-Admins erhalten Audit-Metadaten über `/api/admin/audit`, ohne Snapshot-Werte auszulesen. Der [Phase-F-Reifegrad- und Abschlussbericht](phase-f-reifegrad-abschlussbericht.md) bewertet die lokale Edition als kontrolliert pilotfähig und grenzt spätere Enterprise-Themen ab. Die älteren JWT- und Demo-Benutzer-Abschnitte weiter unten sind historische Projektnotizen und beschreiben nicht mehr den laufenden Code.
+
+### Phase-C-Betrieb auf diesem Rechner
+
+```powershell
+cd "C:\Users\enric\dev\GitHub\HimiFlow\backend"
+dotnet run --project .\Einsparungs.Api\Einsparungs.Api.csproj --launch-profile http
+```
+
+Beim ersten Start einer leeren Datenbank muss einmalig ein Initialpasswort als lokales User Secret gesetzt werden. Das Secret wird niemals in Git eingecheckt:
+
+```powershell
+dotnet user-secrets init --project .\Einsparungs.Api\Einsparungs.Api.csproj
+dotnet user-secrets set "InitialAdmin:TemporaryPassword" "<eigenes-starkes-passwort>" --project .\Einsparungs.Api\Einsparungs.Api.csproj
+```
+
+Bestehende Benutzer werden bei der ersten Anmeldung zur Passwortänderung aufgefordert. Neue Benutzer erhalten bei der Anlage ein zufälliges Einmalpasswort, das nur einmal in der Benutzerverwaltung angezeigt wird. SSO und die spätere SQL-Server-/Cluster-Migration bleiben bewusst nachgelagerte Phasen.
+
+Die für Phase C relevanten Authentifizierungs- und Betriebs-Endpunkte sind:
+
+| Methode | Route | Zweck |
+| --- | --- | --- |
+| `GET` | `/api/auth/csrf` | CSRF-Cookie für den nächsten Schreibzugriff ausstellen |
+| `POST` | `/api/auth/login` | lokale Anmeldung und HttpOnly-Cookie setzen |
+| `GET` | `/api/auth/me` | aktuelle Sitzung prüfen |
+| `POST` | `/api/auth/change-password` | Erstlogin abschließen oder Passwort ändern |
+| `POST` | `/api/auth/logout` | Sitzung serverseitig beenden |
+| `POST` | `/api/user-management/{id}/reset-password` | zufälliges Einmalpasswort erzeugen |
+| `GET` | `/api/license/status` | lokalen Lizenzstatus prüfen |
+| `POST` | `/api/admin/license` | signierten Offline-Jahreslizenzschlüssel installieren (SystemAdmin) |
+| `GET` | `/api/health` | lokale API-/SQLite-Erreichbarkeit prüfen |
+| `GET` | `/api/health/live` | Liveness-Prüfung des API-Prozesses |
+| `GET` | `/api/health/ready` | Readiness-Prüfung inklusive Datenbankverbindung |
+| `GET` | `/api/operations/backups` | vorhandene SQLite-Backups auflisten (SystemAdmin) |
+| `POST` | `/api/operations/backups` | konsistentes SQLite-Backup erstellen (SystemAdmin) |
+| `GET` | `/api/admin/audit` | paginierte technische Audit-Metadaten (SystemAdmin) |
+
+Rollenmatrix: `Mitarbeiter` verwalten nur eigene Einsparungen und sehen globale Statistiken; `FachAdmin` verwaltet alle fachlichen Datensätze und Exporte; `SystemAdmin` verwaltet Benutzer und Rollen, erhält aber keinen Zugriff auf fachliche Einsparungsdaten.
+
+### Phase-C-Betrieb: Lizenz und Read-only-Modus
+
+Die Lizenz ist ein offline signiertes Token. Der Public-Key wird ausschließlich über Konfiguration/User Secrets hinterlegt; ein privater Signaturschlüssel gehört niemals in das Repository. Eine Jahreslizenz erhält automatisch höchstens 30 Tage Grace-Period. Während Grace bleibt der Betrieb schreibbar und es erscheint ein Warnbanner. Nach Ablauf oder bei ungültiger Lizenz blockiert das Backend schreibende Fach- und Stammdatenaufrufe mit HTTP 403 (`LICENSE_READ_ONLY`); Anmeldung, Lizenzverwaltung, Benutzerverwaltung und Backups bleiben für den `SystemAdmin` möglich.
+
+Für die lokale Entwicklung bleibt die Durchsetzung deaktiviert:
+
+```powershell
+dotnet user-secrets set "License:EnforcementEnabled" "false" --project .\Einsparungs.Api\Einsparungs.Api.csproj
+```
+
+Für eine produktionsnahe lokale Installation werden `License:EnforcementEnabled=true`, `License:PublicKeyPem` und optional `License:InstallationId` als sichere Konfiguration gesetzt. Der Schlüssel wird anschließend in der Frontend-Seite **Lizenzverwaltung** installiert.
+
+### Phase-C-Betrieb: Backups und Health
+
+`POST /api/operations/backups` erstellt ein konsistentes Online-Backup über SQLite `WAL`-Checkpoint und `VACUUM INTO`. Standardziel ist der nicht versionierte Ordner `backend/Einsparungs.Api/backups`; über `Backup:Directory` kann ein anderes lokales Ziel konfiguriert werden. Der Restore bleibt absichtlich ein kontrollierter manueller Vorgang: Anwendung stoppen, aktuelle Datenbank sichern, gewünschte `.db`-Datei zurückkopieren und Anwendung wieder starten. Der Endpoint `/api/health` liefert `200 Healthy`, wenn SQLite erreichbar ist.
+
+### Phase-D-Betrieb: kontrollierte Migrationen und Veröffentlichung
+
+Im Produktionsprofil sind `Database:ApplyMigrationsOnStartup` und `Database:SeedOnStartup` standardmäßig deaktiviert. Dadurch kann ein Anwendungstart keine ungeplante Schemaänderung auslösen. Migrationen werden als separater, nachvollziehbarer Schritt ausgeführt:
+
+```powershell
+.\deploy\Apply-Migrations.ps1
+```
+
+Eine neue lokale Installation kann anschließend mit `--seed` die Rollen, Stammdaten und den initialen Systemadministrator anlegen. Das Initialpasswort wird ausschließlich über `InitialAdmin__TemporaryPassword` bzw. einen sicheren Secret-Provider übergeben. Für den vollständigen lokalen Publish-/Setup-Ablauf siehe [`deploy/README.md`](../deploy/README.md).
+
+### Phase-E-Betrieb: Datenschutz und Audit
+
+CSV- und Excel-Exporte enthalten standardmäßig nur eine maskierte KVNR (`A******789`). Die Einstellung `Privacy:MaskKvnrInExports` bleibt absichtlich aktiv und darf nur nach einer dokumentierten fachlichen Datenschutzfreigabe deaktiviert werden. Exportantworten werden mit `Cache-Control: no-store` und `Pragma: no-cache` ausgeliefert.
+
+Der Endpunkt `/api/admin/audit` ist ausschließlich für `SystemAdmin` verfügbar. Er liefert Seiten mit Entität, Aktion, Zeitpunkt, auslösendem Benutzer, Client-Metadaten und geänderten Feldnamen. Die gespeicherten `OldValuesJson`-/`NewValuesJson`-Snapshots werden nicht ausgegeben; insbesondere gelangen keine fachlichen KVNR- oder Betragswerte in die technische Adminansicht. Die Aufbewahrungsdauer ist über `Audit:RetentionDays` dokumentiert, aber mit `0` standardmäßig ohne automatische Löschung. Eine konkrete Frist und ein Löschprozess benötigen eine fachlich-rechtliche Freigabe.
+
 ---
 
 ## 2. Projektkontext
@@ -50,7 +121,7 @@ Das Backend bildet dafür die technische Grundlage. Es stellt alle zentralen Fun
 - Statistik
 - Export
 
-Das Angular-Frontend wird im nächsten Projektabschnitt erstellt und nutzt die hier dokumentierten Backend-Schnittstellen.
+Das Angular-Frontend nutzt die hier dokumentierten Backend-Schnittstellen; die aktuelle Phase C umfasst insbesondere Cookie-Sitzung, lokale Benutzerverwaltung, Lizenzstatus, Health und Backups.
 
 ---
 
@@ -66,8 +137,8 @@ Das Backend ist eine ASP.NET Core Web API.
 | Programmiersprache | C# |
 | Datenzugriff | Entity Framework Core 8 |
 | Lokale Datenbank | SQLite |
-| Authentifizierung | JWT Bearer Authentication |
-| Passwort-Hashing | BCrypt.Net |
+| Authentifizierung | ASP.NET Core Identity, HttpOnly-Cookie, CSRF-Schutz |
+| Passwort-Hashing | Identity (Kompatibilität für vorhandene BCrypt-Hashes) |
 | Excel-Export | ClosedXML |
 | API-Dokumentation | Swagger / OpenAPI |
 | Entwicklungsumgebung | Visual Studio Code |
@@ -81,25 +152,25 @@ Das Backend ist eine ASP.NET Core Web API.
 ### Projekt-Root
 
 ```text
-C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect
+C:\Users\enric\dev\GitHub\HimiFlow
 ```
 
 ### Backend-Root
 
 ```text
-C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect\backend\Einsparungs.Api
+C:\Users\enric\dev\GitHub\HimiFlow\backend\Einsparungs.Api
 ```
 
 ### Solution-Datei
 
 ```text
-C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect\backend\EinsparungsApp.sln
+C:\Users\enric\dev\GitHub\HimiFlow\backend\EinsparungsApp.sln
 ```
 
 ### Lokale SQLite-Datenbank
 
 ```text
-C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect\backend\Einsparungs.Api\einsparungen.db
+C:\Users\enric\dev\GitHub\HimiFlow\backend\Einsparungs.Api\einsparungen.db
 ```
 
 Die Datenbankdatei wird nicht in Git versioniert.
@@ -149,6 +220,9 @@ Aktuell vorhandene Controller:
 | `SavingsController.cs` | Fach-API für Einsparungsdatensätze |
 | `StatisticsController.cs` | Statistik- und Auswertungs-API |
 | `ExportsController.cs` | CSV- und Excel-Export |
+| `UserManagementController.cs` | Benutzer, Rollen und Einmalpasswörter |
+| `LicenseController.cs` / `LicenseAdminController.cs` | Lizenzstatus und Lizenzinstallation |
+| `OperationsController.cs` | Health-nahe Betriebsfunktionen und SQLite-Backups |
 
 ---
 
@@ -167,7 +241,7 @@ Aktuell vorhandene Dateien:
 | Datei | Zweck |
 |---|---|
 | `AppDbContext.cs` | Entity Framework Datenbankkontext |
-| `DatabaseSeeder.cs` | Initiale Befüllung der Datenbank mit Rollen, Teams, Gründen, Produktgruppen und Demo-Benutzern |
+| `DatabaseSeeder.cs` | Initiale Befüllung der Datenbank mit Rollen, Teams, Gründen und Produktgruppen; Initial-Admin nur über lokales Secret |
 
 ---
 
@@ -191,6 +265,7 @@ Aktuell vorhandene DTOs:
 |---|---|
 | `LoginRequest.cs` | Eingabe für Login |
 | `LoginResponse.cs` | Antwort nach erfolgreichem Login |
+| `ChangePasswordRequest.cs` | Eingabe für Passwortwechsel |
 | `SavingsEntryCreateRequest.cs` | Eingabe zum Erstellen eines Einsparungsdatensatzes |
 | `SavingsEntryUpdateRequest.cs` | Eingabe zum Bearbeiten eines Einsparungsdatensatzes |
 | `SavingsEntryResponse.cs` | Antwortmodell für Einsparungsdatensätze |
@@ -239,7 +314,10 @@ Aktuell vorhanden:
 
 | Datei | Zweck |
 |---|---|
-| `JwtTokenService.cs` | Erstellt JWT-Tokens nach erfolgreichem Login |
+| `LegacyCompatiblePasswordHasher.cs` | Prüft vorhandene BCrypt-Hashes und migriert sie bei erfolgreicher Anmeldung zu Identity |
+| `ActiveUserCookieEvents.cs` | Validiert Sicherheitsstempel und aktive Benutzer bei jeder Sitzung |
+| `PasswordChangeRequiredMiddleware.cs` | Sperrt Fach-API-Aufrufe bis zum Erstpasswortwechsel |
+| `TemporaryPasswordGenerator.cs` | Erzeugt kryptografisch zufällige Einmalpasswörter |
 
 ---
 
@@ -274,7 +352,7 @@ Hier wird konfiguriert:
 - Controller-Unterstützung
 - SQLite-Datenbankverbindung
 - Entity Framework Core
-- JWT-Authentifizierung
+- ASP.NET-Core-Identity mit HttpOnly-Cookie und CSRF-Schutz
 - Rollenbasierte Autorisierung
 - Swagger/OpenAPI
 - CORS für das spätere Angular-Frontend
@@ -286,7 +364,7 @@ Hier wird konfiguriert:
 #### 7.1 Controller registrieren
 
 ```csharp
-builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
 ```
 
 Dadurch werden alle Controller im Ordner `Controllers` als API-Endpunkte aktiviert.
@@ -308,13 +386,15 @@ Die Verbindung wird aus `appsettings.json` gelesen.
 
 ---
 
-#### 7.3 JWT-Service registrieren
+#### 7.3 Identity und Sitzungsschutz registrieren
 
 ```csharp
-builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddIdentityCore<AppUser>()
+    .AddSignInManager()
+    .AddEntityFrameworkStores<AppDbContext>();
 ```
 
-Der `JwtTokenService` wird über Dependency Injection bereitgestellt und im `AuthController` verwendet.
+Die Anwendung setzt die Authentifizierungscookie `HimiFlow.Auth` mit `HttpOnly` und `SameSite=Strict`. Schreibende Anfragen benötigen den Header `X-XSRF-TOKEN`; der zugehörige lesbare Request-Token wird über `/api/auth/csrf` ausgegeben.
 
 ---
 
@@ -322,34 +402,22 @@ Der `JwtTokenService` wird über Dependency Injection bereitgestellt und im `Aut
 
 Swagger wird verwendet, um die API im Browser testen zu können.
 
-Zusätzlich wurde Swagger so erweitert, dass JWT-Tokens über den Button **Authorize** eingegeben werden können.
-
-Der Benutzer muss im Swagger-Fenster folgenden Wert eingeben:
-
-```text
-Bearer <token>
-```
-
-Beispiel:
-
-```text
-Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
+Swagger dokumentiert die Routen weiterhin. Für geschützte Aufrufe muss eine Browser-Sitzung mit Cookie und CSRF-Token verwendet werden; ein Bearer-Token ist nicht mehr vorgesehen.
 
 ---
 
-#### 7.5 JWT-Authentifizierung konfigurieren
+#### 7.5 Cookie-Authentifizierung konfigurieren
 
-Die Anwendung verwendet JWT Bearer Authentication.
+Die Anwendung verwendet die ASP.NET-Core-Identity-Cookie.
 
 Dabei werden geprüft:
 
-- Issuer
-- Audience
-- Signing Key
-- Gültigkeitsdauer des Tokens
+- aktive/deaktivierte Benutzer
+- Sicherheitsstempel zur Sitzungswiderrufung
+- Rollenclaims `Mitarbeiter`, `FachAdmin` und `SystemAdmin`
+- erzwungener Passwortwechsel beim Erstlogin
 
-Die Werte kommen aus `appsettings.json`.
+Das SSO-/Active-Directory-Thema bleibt für eine spätere Erweiterung offen.
 
 ---
 
@@ -375,7 +443,8 @@ Beim Start der Anwendung wird automatisch der Seeder ausgeführt:
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DatabaseSeeder.SeedAsync(db);
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+    await DatabaseSeeder.SeedAsync(db, userManager, app.Configuration);
 }
 ```
 
@@ -400,18 +469,13 @@ Diese Datei enthält zentrale Konfigurationswerte.
   "ConnectionStrings": {
     "DefaultConnection": "Data Source=einsparungen.db"
   },
-  "Jwt": {
-    "Issuer": "EinsparungsApp",
-    "Audience": "EinsparungsApp",
-    "Key": "DEV_ONLY_SUPER_SECRET_KEY_CHANGE_LATER_123456789"
-  },
   "Logging": {
     "LogLevel": {
       "Default": "Information",
       "Microsoft.AspNetCore": "Warning"
     }
   },
-  "AllowedHosts": "*"
+  "AllowedHosts": "localhost;127.0.0.1"
 }
 ```
 
@@ -420,22 +484,24 @@ Diese Datei enthält zentrale Konfigurationswerte.
 | Abschnitt | Bedeutung |
 |---|---|
 | `ConnectionStrings:DefaultConnection` | SQLite-Verbindung zur lokalen Datenbank |
-| `Jwt:Issuer` | Herausgeber des JWT-Tokens |
-| `Jwt:Audience` | Zielgruppe des JWT-Tokens |
-| `Jwt:Key` | Signaturschlüssel für JWT |
+| `InitialAdmin:TemporaryPassword` | lokales User Secret für den ersten System-Admin einer leeren Datenbank |
 | `Logging` | Logging-Konfiguration |
 | `AllowedHosts` | Host-Einschränkung für ASP.NET Core |
 
 ### Administrativer Hinweis
 
-Der aktuelle JWT-Key ist ausschließlich für den lokalen Prototyp geeignet.
-
-Für eine produktionsnahe Umgebung muss dieser Schlüssel ersetzt und sicher verwaltet werden, zum Beispiel über:
+Das Initialpasswort des ersten System-Admins ist nicht Bestandteil von `appsettings.json` oder des Repositories. Im lokalen Entwicklungsbetrieb wird es über .NET User Secrets bereitgestellt. In anderen Umgebungen muss es über einen sicheren Konfigurationsanbieter gesetzt werden, zum Beispiel über:
 
 - Umgebungsvariablen
 - Secret Store
 - Server-Konfiguration
 - Key Vault oder vergleichbare interne Lösung
+
+Ein lokales Initialpasswort kann mit einem eigenen starken Wert gesetzt werden:
+
+```powershell
+dotnet user-secrets set "InitialAdmin:TemporaryPassword" "<eigenes-starkes-passwort>" --project ".\backend\Einsparungs.Api\Einsparungs.Api.csproj"
+```
 
 ---
 
@@ -542,7 +608,7 @@ Wichtige Felder:
 | `Id` | Eindeutige Benutzer-ID |
 | `UserName` | Login-Name |
 | `DisplayName` | Anzeigename |
-| `PasswordHash` | BCrypt-Hash des Passworts |
+| `PasswordHash` | ASP.NET-Core-Identity-Hash; vorhandene BCrypt-Hashes werden beim erfolgreichen Login kompatibel übernommen |
 | `TeamId` | Optionales Team des Benutzers |
 | `IsActive` | Gibt an, ob der Benutzer aktiv ist |
 | `CreatedAt` | Erstellungszeitpunkt |
@@ -571,13 +637,11 @@ Aktuelle Rollen:
 
 ```text
 Mitarbeiter
-Fuehrungskraft
-Admin
+FachAdmin
+SystemAdmin
 ```
 
-Hinweis:
-
-Die Rolle `Fuehrungskraft` wird im Code ohne Umlaut geschrieben. Das ist bewusst so gewählt, um technische Probleme mit Sonderzeichen in Rollenclaims zu vermeiden.
+`FachAdmin` entspricht der fachlichen Führungskraftrolle. `SystemAdmin` ist für IT-/Systemverwaltung vorgesehen.
 
 ---
 
@@ -2455,15 +2519,14 @@ Aktuelle Werte:
   },
   "Jwt": {
     "Issuer": "EinsparungsApp",
-    "Audience": "EinsparungsApp",
-    "Key": "DEV_ONLY_SUPER_SECRET_KEY_CHANGE_LATER_123456789"
+    "Audience": "EinsparungsApp"
   }
 }
 ```
 
 Wichtig fuer produktionsnahe Umgebungen:
 
-- Der aktuelle JWT-Key ist als Entwicklungswert gekennzeichnet und muss fuer echte Betriebsumgebungen ersetzt werden.
+- Der JWT-Key steht nicht im Repository und wird lokal über .NET User Secrets bereitgestellt.
 - Der SQLite-Dateiname `einsparungen.db` ist relativ zum Ausfuehrungsverzeichnis.
 - Fuer produktive Nutzung sollte ein sicherer Secret-Mechanismus verwendet werden, zum Beispiel Umgebungsvariablen, Secret Store oder ein Deployment-spezifischer Konfigurationsanbieter.
 

@@ -22,6 +22,12 @@
       </div>
     }
 
+    @if (licenseService.isReadOnly()) {
+      <div class="message warning" role="status">
+        Die Lizenz ist abgelaufen. Der Datensatz kann im schreibgeschützten Modus nicht gespeichert werden.
+      </div>
+    }
+
     <form class="savings-form" (ngSubmit)="save()">
       <div class="form-grid">
         <label>
@@ -124,7 +130,7 @@
       </aside>
 
       <div class="actions">
-        <button type="submit" [disabled]="isSaving()">
+        <button type="submit" [disabled]="isSaving() || licenseService.isReadOnly()">
           {{ isSaving() ? 'Speichern läuft...' : 'Einsparung speichern' }}
         </button>
       </div>

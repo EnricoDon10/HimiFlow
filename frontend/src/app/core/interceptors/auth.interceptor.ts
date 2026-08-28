@@ -1,17 +1,9 @@
-﻿import { HttpInterceptorFn } from '@angular/common/http';
+import { HttpInterceptorFn } from '@angular/common/http';
 
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
-  const token = localStorage.getItem('einsparungsdatenbank_token');
-
-  if (!token) {
+  if (!request.url.includes('/api/')) {
     return next(request);
   }
 
-  const authorizedRequest = request.clone({
-    setHeaders: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
-  return next(authorizedRequest);
+  return next(request.clone({ withCredentials: true }));
 };

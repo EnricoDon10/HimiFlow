@@ -1,5 +1,6 @@
 using Einsparungs.Api.Data;
 using Einsparungs.Api.Models;
+using Einsparungs.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,7 @@ namespace Einsparungs.Api.Controllers;
 
 [ApiController]
 [Route("api/master-data")]
+[Authorize]
 public class MasterDataController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -18,6 +20,7 @@ public class MasterDataController : ControllerBase
     }
 
     [HttpGet("teams")]
+    [Authorize(Roles = ApplicationRoles.Mitarbeiter + "," + ApplicationRoles.FachAdmin + "," + ApplicationRoles.SystemAdmin)]
     public async Task<IActionResult> GetTeams()
     {
         var teams = await _db.Teams
@@ -36,6 +39,7 @@ public class MasterDataController : ControllerBase
     }
 
     [HttpGet("saving-reasons")]
+    [Authorize(Roles = ApplicationRoles.Mitarbeiter + "," + ApplicationRoles.FachAdmin)]
     public async Task<IActionResult> GetSavingReasons()
     {
         var reasons = await _db.SavingReasons
@@ -52,6 +56,7 @@ public class MasterDataController : ControllerBase
     }
 
     [HttpGet("product-groups")]
+    [Authorize(Roles = ApplicationRoles.Mitarbeiter + "," + ApplicationRoles.FachAdmin)]
     public async Task<IActionResult> GetProductGroups([FromQuery] string? search)
     {
         var query = _db.ProductGroups
@@ -75,7 +80,7 @@ public class MasterDataController : ControllerBase
     }
 
     [HttpGet("product-groups/manage")]
-    [Authorize(Roles = "Fuehrungskraft,Admin")]
+    [Authorize(Roles = ApplicationRoles.FachAdmin)]
     public async Task<IActionResult> GetManagedProductGroups()
     {
         var productGroups = await _db.ProductGroups
@@ -88,7 +93,7 @@ public class MasterDataController : ControllerBase
     }
 
     [HttpPost("product-groups")]
-    [Authorize(Roles = "Fuehrungskraft,Admin")]
+    [Authorize(Roles = ApplicationRoles.FachAdmin)]
     public async Task<ActionResult<ProductGroupResponse>> CreateProductGroup(ProductGroupSaveRequest request)
     {
         var displayValue = request.DisplayValue?.Trim() ?? string.Empty;
@@ -116,7 +121,7 @@ public class MasterDataController : ControllerBase
     }
 
     [HttpPut("product-groups/{id:int}")]
-    [Authorize(Roles = "Fuehrungskraft,Admin")]
+    [Authorize(Roles = ApplicationRoles.FachAdmin)]
     public async Task<ActionResult<ProductGroupResponse>> UpdateProductGroup(
         int id,
         ProductGroupSaveRequest request)
@@ -144,7 +149,7 @@ public class MasterDataController : ControllerBase
     }
 
     [HttpDelete("product-groups/{id:int}")]
-    [Authorize(Roles = "Fuehrungskraft,Admin")]
+    [Authorize(Roles = ApplicationRoles.FachAdmin)]
     public async Task<IActionResult> DeleteProductGroup(int id)
     {
         var productGroup = await _db.ProductGroups

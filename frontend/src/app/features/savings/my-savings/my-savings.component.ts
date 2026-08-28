@@ -6,6 +6,7 @@ import { ProductGroup, SavingReason, Team } from '../../../core/models/master-da
 import { SavingsEntryResponse } from '../../../core/models/savings-entry.model';
 import { MasterDataService } from '../../../core/services/master-data.service';
 import { SavingsService } from '../../../core/services/savings.service';
+import { LicenseService } from '../../../core/services/license.service';
 import { forkJoin } from 'rxjs';
 
 @Component({
@@ -40,7 +41,8 @@ export class MySavingsComponent implements OnInit {
 
   constructor(
     private readonly savingsService: SavingsService,
-    private readonly masterDataService: MasterDataService
+    private readonly masterDataService: MasterDataService,
+    readonly licenseService: LicenseService
   ) {}
 
   ngOnInit(): void {
@@ -88,6 +90,11 @@ export class MySavingsComponent implements OnInit {
   }
 
   startEdit(entry: SavingsEntryResponse): void {
+    if (this.licenseService.isReadOnly()) {
+      this.errorMessage.set('Die Lizenz ist abgelaufen. Bearbeitungen sind derzeit gesperrt.');
+      return;
+    }
+
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.editingEntry.set(entry);
@@ -112,6 +119,11 @@ export class MySavingsComponent implements OnInit {
   }
 
   saveEdit(): void {
+    if (this.licenseService.isReadOnly()) {
+      this.errorMessage.set('Die Lizenz ist abgelaufen. Bearbeitungen sind derzeit gesperrt.');
+      return;
+    }
+
     const entry = this.editingEntry();
 
     if (!entry) {
@@ -159,6 +171,11 @@ export class MySavingsComponent implements OnInit {
   }
 
   deleteEntry(entry: SavingsEntryResponse): void {
+    if (this.licenseService.isReadOnly()) {
+      this.errorMessage.set('Die Lizenz ist abgelaufen. Löschungen sind derzeit gesperrt.');
+      return;
+    }
+
     const confirmed = confirm(
       `Soll der Datensatz mit KVNR ${entry.kvnr} wirklich gelöscht werden?`
     );

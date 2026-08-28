@@ -1,27 +1,28 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Identity;
 
 namespace Einsparungs.Api.Models;
 
-public class AppUser
+public class AppUser : IdentityUser<Guid>
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-
-    [Required]
-    [MaxLength(100)]
-    public string UserName { get; set; } = string.Empty;
+    public AppUser()
+    {
+        Id = Guid.NewGuid();
+        LockoutEnabled = true;
+    }
 
     [Required]
     [MaxLength(200)]
     public string DisplayName { get; set; } = string.Empty;
 
-    [Required]
-    [MaxLength(500)]
-    public string PasswordHash { get; set; } = string.Empty;
-
     public int? TeamId { get; set; }
     public Team? Team { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    public bool MustChangePassword { get; set; } = true;
+
+    public DateTime? PasswordChangedAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
@@ -30,5 +31,5 @@ public class AppUser
 
     public bool IsDeleted { get; set; }
 
-    public DateTime? DeletedAt { get; set; }}
-
+    public DateTime? DeletedAt { get; set; }
+}

@@ -43,6 +43,20 @@
   padding: 1.25rem;
 }
 
+.message.warning {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.message code {
+  width: fit-content;
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.45rem 0.6rem;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+}
+
 .create-card,
 .message {
   margin-bottom: 1.5rem;
@@ -133,6 +147,17 @@ select:focus {
   }
 }
 
+.form-hint,
+.status-badge + small {
+  color: #6b6b6b;
+  font-size: 0.88rem;
+}
+
+.status-badge + small {
+  display: block;
+  margin-top: 0.35rem;
+}
+
 button:disabled {
   opacity: 0.65;
   cursor: not-allowed;
@@ -189,9 +214,28 @@ tbody tr:hover {
   color: #92400e;
 }
 
-.role-badge.admin {
+.role-badge.system-admin {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.role-badge.fach-admin {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 900;
+}
+
+.status-badge.inactive {
+  background: #f3f4f6;
+  color: #6b7280;
 }
 
 .row-actions {

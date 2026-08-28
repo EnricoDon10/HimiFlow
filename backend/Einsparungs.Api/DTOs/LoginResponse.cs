@@ -1,9 +1,7 @@
 namespace Einsparungs.Api.DTOs;
 
-public class LoginResponse
+public sealed class LoginResponse
 {
-    public string Token { get; set; } = string.Empty;
-
     public Guid UserId { get; set; }
 
     public string UserName { get; set; } = string.Empty;
@@ -12,5 +10,5 @@ public class LoginResponse
 
     public List<string> Roles { get; set; } = new();
 
-    public DateTime ExpiresAt { get; set; }
+    public bool MustChangePassword { get; set; }
 }

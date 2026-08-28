@@ -1,8 +1,7 @@
-﻿export interface LoginResponse {
-  token: string;
+export interface LoginResponse {
   userId: string;
   userName: string;
   displayName: string;
   roles: string[];
-  expiresAt: string;
+  mustChangePassword: boolean;
 }

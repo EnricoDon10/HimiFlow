@@ -18,12 +18,32 @@
 
       <label>
         Passwort
-        <input
-          name="password"
-          type="password"
-          [(ngModel)]="password"
-          autocomplete="current-password"
-        />
+        <span class="password-field">
+          <input
+            name="password"
+            [type]="showPassword ? 'text' : 'password'"
+            [(ngModel)]="password"
+            autocomplete="current-password"
+          />
+          <button
+            type="button"
+            class="password-toggle"
+            [attr.aria-label]="showPassword ? 'Passwort ausblenden' : 'Passwort anzeigen (Klick oder gedrückt halten)'"
+            [attr.aria-pressed]="showPassword"
+            (pointerdown)="beginPasswordPress($event)"
+            (pointerup)="endPasswordPress()"
+            (pointerleave)="endPasswordPress()"
+            (pointercancel)="endPasswordPress()"
+            (keydown.enter)="togglePasswordFromKeyboard($event)"
+            (keydown.space)="togglePasswordFromKeyboard($event)"
+            (click)="togglePassword()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="2.5" />
+            </svg>
+          </button>
+        </span>
       </label>
 
       @if (errorMessage()) {

@@ -3,6 +3,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ProductGroup } from '../../../core/models/master-data.model';
 import { MasterDataService } from '../../../core/services/master-data.service';
+import { LicenseService } from '../../../core/services/license.service';
 
 @Component({
   selector: 'app-product-groups',
@@ -24,7 +25,10 @@ export class ProductGroupsComponent implements OnInit {
   displayValue = '';
   editDisplayValue = '';
 
-  constructor(private readonly masterDataService: MasterDataService) {}
+  constructor(
+    private readonly masterDataService: MasterDataService,
+    readonly licenseService: LicenseService
+  ) {}
 
   ngOnInit(): void {
     this.loadProductGroups();
@@ -47,6 +51,11 @@ export class ProductGroupsComponent implements OnInit {
   }
 
   createProductGroup(): void {
+    if (this.licenseService.isReadOnly()) {
+      this.errorMessage.set('Die Lizenz ist abgelaufen. Änderungen an Produktgruppen sind gesperrt.');
+      return;
+    }
+
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
@@ -91,6 +100,11 @@ export class ProductGroupsComponent implements OnInit {
   }
 
   updateProductGroup(productGroup: ProductGroup): void {
+    if (this.licenseService.isReadOnly()) {
+      this.errorMessage.set('Die Lizenz ist abgelaufen. Änderungen an Produktgruppen sind gesperrt.');
+      return;
+    }
+
     this.errorMessage.set(null);
     this.successMessage.set(null);
 
@@ -124,6 +138,11 @@ export class ProductGroupsComponent implements OnInit {
   }
 
   deleteProductGroup(productGroup: ProductGroup): void {
+    if (this.licenseService.isReadOnly()) {
+      this.errorMessage.set('Die Lizenz ist abgelaufen. Änderungen an Produktgruppen sind gesperrt.');
+      return;
+    }
+
     const confirmed = confirm(
       `Produktgruppe "${productGroup.displayValue}" wirklich löschen?`
     );

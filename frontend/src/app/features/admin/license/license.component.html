@@ -1,0 +1,55 @@
+<section class="license-page">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Systemverwaltung</p>
+      <h1>Lizenz</h1>
+      <span>Jahreslizenz offline installieren und den lokalen Betriebsstatus prüfen.</span>
+    </div>
+  </div>
+
+  @if (licenseService.status(); as status) {
+    <section class="status-card" [class.warning]="status.status !== 'ACTIVE'">
+      <div>
+        <span class="status-label">Status</span>
+        <strong>{{ status.status }}</strong>
+      </div>
+      <dl>
+        <div><dt>Kunde</dt><dd>{{ status.customerName || '–' }}</dd></div>
+        <div><dt>Lizenz-ID</dt><dd>{{ status.licenseId || '–' }}</dd></div>
+        <div><dt>Gültig bis</dt><dd>{{ status.validUntil ? (status.validUntil | date:'dd.MM.yyyy') : '–' }}</dd></div>
+        <div><dt>Grace-Ende</dt><dd>{{ status.graceUntil ? (status.graceUntil | date:'dd.MM.yyyy') : '–' }}</dd></div>
+      </dl>
+      @if (status.message) {
+        <p class="status-message">{{ status.message }}</p>
+      }
+    </section>
+  }
+
+  <section class="install-card">
+    <h2>Lizenzschlüssel installieren</h2>
+    <p>Der signierte Schlüssel wird lokal in SQLite gespeichert. Der private Signaturschlüssel bleibt außerhalb dieser Anwendung.</p>
+    <form (ngSubmit)="install()">
+      <label for="licenseKey">Lizenzschlüssel</label>
+      <textarea
+        id="licenseKey"
+        name="licenseKey"
+        rows="5"
+        [(ngModel)]="licenseKey"
+        spellcheck="false"
+        autocomplete="off"
+        placeholder="HIMIFLOW-LICENSE-V1...."
+      ></textarea>
+
+      @if (errorMessage()) {
+        <p class="error-message" role="alert">{{ errorMessage() }}</p>
+      }
+      @if (successMessage()) {
+        <p class="success-message" role="status">{{ successMessage() }}</p>
+      }
+
+      <button type="submit" [disabled]="isLoading()">
+        {{ isLoading() ? 'Wird installiert...' : 'Lizenz installieren' }}
+      </button>
+    </form>
+  </section>
+</section>

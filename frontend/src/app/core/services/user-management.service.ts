@@ -1,9 +1,11 @@
-﻿import { HttpClient } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_CONFIG } from '../config/api.config';
 import {
+  ChangeUserRoleRequest,
   CreateUserRequest,
+  CreateUserResponse,
   ResetPasswordResponse,
   UserManagementUser
 } from '../models/user-management.model';
@@ -12,31 +14,34 @@ import {
   providedIn: 'root'
 })
 export class UserManagementService {
+  private readonly resourceUrl = `${API_CONFIG.baseUrl}/api/user-management`;
+
   constructor(private readonly http: HttpClient) {}
 
   getUsers(): Observable<UserManagementUser[]> {
-    return this.http.get<UserManagementUser[]>(
-      `${API_CONFIG.baseUrl}/api/user-management`
-    );
+    return this.http.get<UserManagementUser[]>(this.resourceUrl);
   }
 
-  createUser(request: CreateUserRequest): Observable<UserManagementUser> {
-    return this.http.post<UserManagementUser>(
-      `${API_CONFIG.baseUrl}/api/user-management`,
-      request
-    );
+  createUser(request: CreateUserRequest): Observable<CreateUserResponse> {
+    return this.http.post<CreateUserResponse>(this.resourceUrl, request);
   }
 
   resetPassword(id: string): Observable<ResetPasswordResponse> {
     return this.http.post<ResetPasswordResponse>(
-      `${API_CONFIG.baseUrl}/api/user-management/${id}/reset-password`,
+      `${this.resourceUrl}/${id}/reset-password`,
       {}
     );
   }
 
-  deleteUser(id: string): Observable<void> {
-    return this.http.delete<void>(
-      `${API_CONFIG.baseUrl}/api/user-management/${id}`
-    );
+  changeRole(id: string, request: ChangeUserRoleRequest): Observable<UserManagementUser> {
+    return this.http.put<UserManagementUser>(`${this.resourceUrl}/${id}/role`, request);
+  }
+
+  deactivate(id: string): Observable<void> {
+    return this.http.post<void>(`${this.resourceUrl}/${id}/deactivate`, {});
+  }
+
+  activate(id: string): Observable<void> {
+    return this.http.post<void>(`${this.resourceUrl}/${id}/activate`, {});
   }
 }

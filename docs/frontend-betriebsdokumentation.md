@@ -1,10 +1,12 @@
 # Frontend-Betriebsdokumentation HimiFlow
 
-Stand: 03.07.2026
+Stand: 28.08.2026
 
 ## 1. Zweck des Frontends
 
-Das Frontend ist die browserbasierte Bedienoberflaeche von HimiFlow. Es stellt die fachlichen Funktionen der Einsparungsdatenbank fuer die Benutzerrollen Mitarbeiter, Fuehrungskraft und Admin bereit.
+Das Frontend ist die browserbasierte Bedienoberflaeche von HimiFlow. Es stellt die fachlichen Funktionen der Einsparungsdatenbank fuer die Rollen Mitarbeiter, FachAdmin (Führungskraft) und SystemAdmin (IT-Administration) bereit.
+
+> **Maßgeblicher Stand Phase F (28.08.2026):** Das Frontend verwendet keine JWTs und keinen `localStorage` mehr. Die Anmeldung erfolgt über die HttpOnly-Cookie des Backends; Angular sendet API-Aufrufe mit `withCredentials` und dem CSRF-Header `X-XSRF-TOKEN`. Die Rollen heißen `Mitarbeiter`, `FachAdmin` und `SystemAdmin`. Ergänzt sind Lizenzstatus/-verwaltung, Read-only-Hinweise, responsive Layout-Politur und zugängliche Passwortfelder mit gedrückt-halten-Anzeige. Fach-Admin-Exporte werden backendseitig mit maskierter KVNR und `no-store` ausgeliefert. Die lokale Edition ist laut [Phase-F-Reifegrad- und Abschlussbericht](phase-f-reifegrad-abschlussbericht.md) kontrolliert pilotfähig; die älteren JWT-/Demo-Benutzer-Hinweise weiter unten sind historische Notizen.
 
 Das Frontend ermoeglicht:
 
@@ -12,12 +14,12 @@ Das Frontend ermoeglicht:
 - rollenbasierte Navigation
 - Erfassung neuer Einsparungsfaelle
 - Anzeige eigener Einsparungen
-- Anzeige aller Einsparungen fuer Fuehrungskraft und Admin
+- Anzeige aller Einsparungen fuer Fach-Admins (Führungskräfte)
 - Bearbeiten und Loeschen von Einsparungen
 - Statistikansichten
 - CSV- und Excel-Export fuer berechtigte Rollen
-- Benutzerverwaltung fuer Admins
-- Produktgruppenverwaltung fuer Fuehrungskraft und Admin
+- Benutzerverwaltung fuer System-Admins
+- Produktgruppenverwaltung fuer Fach-Admins
 
 ## 2. Technischer Steckbrief
 
@@ -30,7 +32,7 @@ Das Frontend ermoeglicht:
 | Formulare | Angular Forms / `FormsModule` |
 | HTTP | Angular `HttpClient` |
 | Routing | Angular Router |
-| Authentifizierung | JWT im `localStorage` |
+| Authentifizierung | HttpOnly-Cookie + CSRF-Header |
 | Package Manager | npm |
 | Test-Setup | Angular Unit Test Builder mit Vitest-Typen |
 
@@ -67,6 +69,7 @@ frontend/
         services/
       features/
         admin/
+          license/
           product-groups/
           user-management/
         dashboard/
@@ -92,14 +95,14 @@ frontend/
 ### Abhaengigkeiten installieren
 
 ```powershell
-cd "C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect\frontend"
+cd "C:\Users\enric\dev\GitHub\HimiFlow\frontend"
 npm install
 ```
 
 ### Development-Server starten
 
 ```powershell
-cd "C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect\frontend"
+cd "C:\Users\enric\dev\GitHub\HimiFlow\frontend"
 npm run start
 ```
 
@@ -108,6 +111,12 @@ Danach ist das Frontend erreichbar unter:
 ```text
 http://localhost:4200
 ```
+
+### Lizenzstatus und Passwortfelder
+
+System-Admins finden unter **Lizenzverwaltung** den lokalen Lizenzstatus und können einen vom Anbieter signierten Jahreslizenzschlüssel installieren. Bei Grace-Period, Ablauf oder ungültiger Lizenz zeigt das Layout einen Hinweis; nach Ablauf bleiben Lesefunktionen verfügbar, Schreibaktionen werden deaktiviert und zusätzlich vom Backend abgewiesen.
+
+In Login und Passwortänderung kann das Passwort durch Gedrückthalten des Augen-Symbols kurz eingeblendet werden. Das funktioniert mit Maus/Touch und mit der Leertaste; Enter schaltet die Anzeige für Tastaturbedienung um.
 
 ### Production-Build erstellen
 
@@ -164,11 +173,11 @@ Aktueller Wert:
 
 ```ts
 export const API_CONFIG = {
-  baseUrl: 'http://localhost:5281'
+  baseUrl: ''
 };
 ```
 
-Wenn das Backend auf einem anderen Host oder Port laeuft, muss dieser Wert angepasst werden.
+Das Frontend verwendet damit relative `/api`-Aufrufe. Im lokalen Entwicklungsbetrieb leitet `proxy.conf.json` diese Aufrufe an `http://localhost:5281` weiter. Nach Änderungen an der Proxy-Konfiguration muss `npm run start` neu gestartet werden. Für spätere Deployments können Frontend und API unter derselben Origin betrieben werden, ohne eine Backend-Adresse in den Browser-Build einzubetten.
 
 ## 8. App-Initialisierung
 
@@ -185,7 +194,7 @@ Registrierte Provider:
 - Angular Router mit `app.routes.ts`
 - `HttpClient` mit `authInterceptor`
 
-Der `authInterceptor` sorgt dafuer, dass ein vorhandener JWT-Token automatisch an API-Aufrufe angehaengt wird.
+Der `authInterceptor` sorgt dafür, dass API-Aufrufe mit der Authentifizierungscookie an das Backend gesendet werden. Angular liest den XSRF-Request-Token aus dem `XSRF-TOKEN`-Cookie und setzt den Header automatisch.
 
 ## 9. Routing und Navigation
 
@@ -224,27 +233,14 @@ Die Authentifizierungslogik liegt in:
 frontend/src/app/core/services/auth.service.ts
 ```
 
-Nach erfolgreichem Login speichert das Frontend:
-
-| Key | Inhalt |
-| --- | --- |
-| `einsparungsdatenbank_token` | JWT-Token |
-| `einsparungsdatenbank_user` | LoginResponse mit Benutzer- und Rolleninformationen |
-
-Speicherort:
-
-```text
-Browser localStorage
-```
-
-Beim Logout werden beide Werte entfernt.
+Nach erfolgreichem Login speichert das Frontend keine Zugangsdaten im Browser. Die Authentifizierung übernimmt die HttpOnly-Cookie `HimiFlow.Auth` des Backends. Der aktuelle Benutzer wird nur im Laufzeitzustand der Angular-Anwendung gehalten und bei `/api/auth/me` erneut geladen.
 
 ### Login-Ablauf
 
 1. Benutzer oeffnet `/login`.
 2. Loginformular sendet Benutzername und Passwort an `/api/auth/login`.
-3. Backend liefert JWT und Benutzerinformationen.
-4. Frontend speichert Token und Benutzer im `localStorage`.
+3. Backend setzt die HttpOnly-Cookie und liefert Benutzer- und Rolleninformationen.
+4. Bei einem neuen Browser-Tab lädt das Frontend den Benutzer über `/api/auth/me`.
 5. Benutzer wird in den geschuetzten Bereich weitergeleitet.
 
 ### Token-Verwendung
@@ -255,10 +251,10 @@ Der Interceptor in:
 frontend/src/app/core/interceptors/auth.interceptor.ts
 ```
 
-setzt bei vorhandenen Token:
+setzt für API-Aufrufe `withCredentials: true` und überlässt dem Browser die Cookie-Übertragung. Für schreibende Aufrufe wird der Angular-XSRF-Header gesetzt:
 
 ```http
-Authorization: Bearer <token>
+X-XSRF-TOKEN: <request-token>
 ```
 
 ## 11. Guards und Rollensteuerung
@@ -277,11 +273,11 @@ Wichtig: Die Frontend-Guards verbessern Bedienung und Navigation, ersetzen aber 
 
 | Rolle | Sichtbare Funktionen im Frontend |
 | --- | --- |
-| Mitarbeiter | Dashboard, Einsparung erfassen, Meine Einsparungen, Statistik |
-| Fuehrungskraft | Mitarbeiter-Funktionen plus Alle Einsparungen, Export, Produktgruppen verwalten |
-| Admin | Fuehrungskraft-Funktionen plus Benutzerverwaltung |
+| Mitarbeiter | Dashboard, Einsparung erfassen, Meine Einsparungen, globale Statistik |
+| FachAdmin | Mitarbeiter-Funktionen plus Alle Einsparungen, Export, Produktgruppen verwalten |
+| SystemAdmin | Benutzerverwaltung und Systemzugriff; keine fachlichen Einsparungsdaten |
 
-Die Rollen werden aus der LoginResponse und teilweise aus dem JWT gelesen.
+Die Rollen werden aus der LoginResponse und dem aktuellen Laufzeitzustand der Anwendung gelesen. Die verbindliche Prüfung erfolgt serverseitig.
 
 ## 13. Fachliche Seiten
 
@@ -443,7 +439,7 @@ Zweck:
 - Benutzer anlegen
 - Rolle zuweisen
 - Team zuweisen
-- Passwort auf `Demo123!` zuruecksetzen
+- temporäres Einmalpasswort erzeugen und nach der ersten Anmeldung ändern
 - Benutzer loeschen
 
 ## 14. Services und API-Kommunikation
@@ -515,14 +511,14 @@ Fuer den lokalen Gesamtbetrieb muessen Backend und Frontend parallel laufen.
 Backend:
 
 ```powershell
-cd "C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect\backend"
+cd "C:\Users\enric\dev\GitHub\HimiFlow\backend"
 dotnet run --project .\Einsparungs.Api\Einsparungs.Api.csproj --launch-profile http
 ```
 
 Frontend:
 
 ```powershell
-cd "C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect\frontend"
+cd "C:\Users\enric\dev\GitHub\HimiFlow\frontend"
 npm run start
 ```
 
@@ -538,8 +534,8 @@ Erwartete URLs:
 
 | Fehlerbild | Ursache | Massnahme |
 | --- | --- | --- |
-| Login schlaegt fehl | Backend laeuft nicht oder Zugangsdaten falsch | Backend starten, Demo-Benutzer pruefen |
-| API-Aufruf liefert 401 | Token fehlt oder abgelaufen | neu anmelden |
+| Login schlaegt fehl | Backend laeuft nicht oder Zugangsdaten falsch | Backend starten und Benutzerkonto pruefen |
+| API-Aufruf liefert 401 | Cookie fehlt/abgelaufen oder Benutzer deaktiviert | `/login` neu laden und anmelden |
 | API-Aufruf liefert 403 | Rolle reicht nicht aus | Benutzerrolle pruefen |
 | CORS-Fehler im Browser | Backend erlaubt Frontend-Origin nicht | Backend-CORS in `Program.cs` pruefen |
 | Produktgruppen fehlen im Dropdown | keine aktiven Produktgruppen oder Backend nicht erreichbar | Produktgruppenverwaltung und API pruefen |
@@ -564,7 +560,7 @@ Bei neuen Features sollte folgendes Schema eingehalten werden:
 Frontend bauen:
 
 ```powershell
-cd "C:\Users\enric\OneDrive\Dokumente\GitHub\First-Procect\frontend"
+cd "C:\Users\enric\dev\GitHub\HimiFlow\frontend"
 npm run build
 ```
 

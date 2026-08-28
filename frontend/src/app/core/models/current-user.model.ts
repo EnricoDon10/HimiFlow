@@ -3,4 +3,5 @@
   userName: string;
   displayName: string;
   roles: string[];
+  mustChangePassword: boolean;
 }

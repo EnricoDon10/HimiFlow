@@ -1,34 +1,32 @@
-﻿<section class="page-header">
+<section class="page-header">
   <div>
-    <p>Administration</p>
+    <p>System-Administration</p>
     <h1>Benutzerverwaltung</h1>
-    <span>Benutzer anlegen, löschen und Passwörter zurücksetzen.</span>
+    <span>Benutzer anlegen, Rollen verwalten und temporäre Passwörter erzeugen.</span>
   </div>
 
   <button type="button" (click)="loadUsers()">Aktualisieren</button>
 </section>
 
 @if (errorMessage()) {
-  <section class="message error">
-    {{ errorMessage() }}
-  </section>
+  <section class="message error" role="alert">{{ errorMessage() }}</section>
 }
 
 @if (successMessage()) {
-  <section class="message success">
-    {{ successMessage() }}
-  </section>
+  <section class="message success">{{ successMessage() }}</section>
 }
 
-@if (resetPasswordMessage()) {
-  <section class="message warning">
-    {{ resetPasswordMessage() }}
+@if (temporaryPasswordMessage()) {
+  <section class="message warning" role="status">
+    <strong>Temporäres Passwort – jetzt sicher übermitteln:</strong>
+    <code>{{ temporaryPasswordMessage() }}</code>
+    <span>Es wird nicht erneut angezeigt und muss beim Erstlogin geändert werden.</span>
   </section>
 }
 
 <section class="create-card">
   <div class="card-header">
-    <p>Neuer Benutzer</p>
+    <p>Neuer Zugang</p>
     <h2>Benutzer anlegen</h2>
   </div>
 
@@ -57,16 +55,6 @@
       </label>
 
       <label>
-        Passwort
-        <input
-          type="text"
-          name="password"
-          [(ngModel)]="password"
-          autocomplete="new-password"
-        />
-      </label>
-
-      <label>
         Rolle
         <select
           name="roleName"
@@ -79,7 +67,7 @@
         </select>
       </label>
 
-      @if (roleName !== 'Admin') {
+      @if (roleName !== 'SystemAdmin') {
         <label>
           Team
           <select name="teamId" [(ngModel)]="teamId">
@@ -90,6 +78,10 @@
         </label>
       }
     </div>
+
+    <p class="form-hint">
+      Das temporäre Passwort wird sicher auf dem Server erzeugt und nur einmal nach dem Speichern angezeigt.
+    </p>
 
     <div class="form-actions">
       <button type="submit" [disabled]="isCreating()">
@@ -102,17 +94,13 @@
 <section class="table-card">
   <div class="card-header">
     <p>Bestand</p>
-    <h2>Alle Benutzer</h2>
+    <h2>Lokale Benutzer</h2>
   </div>
 
   @if (isLoading()) {
-    <div class="state-box">
-      Benutzer werden geladen...
-    </div>
+    <div class="state-box">Benutzer werden geladen...</div>
   } @else if (users().length === 0) {
-    <div class="state-box">
-      Keine Benutzer vorhanden.
-    </div>
+    <div class="state-box">Keine Benutzer vorhanden.</div>
   } @else {
     <div class="table-wrapper">
       <table>
@@ -122,6 +110,7 @@
             <th>Name</th>
             <th>Rolle</th>
             <th>Team</th>
+            <th>Status</th>
             <th>Aktionen</th>
           </tr>
         </thead>
@@ -130,33 +119,47 @@
           @for (user of users(); track user.id) {
             <tr>
               <td>{{ user.userName }}</td>
+              <td><strong>{{ user.displayName }}</strong></td>
               <td>
-                <strong>{{ user.displayName }}</strong>
-              </td>
-              <td>
-                <span class="role-badge" [class]="getRoleBadgeClass(user.roleName)">
-                  {{ user.roleName }}
-                </span>
+                <select
+                  [ngModel]="user.roleName"
+                  [name]="'role-' + user.id"
+                  (ngModelChange)="changeRole(user, $event)"
+                  [disabled]="processingUserId() === user.id || isCurrentUser(user)"
+                  [attr.aria-label]="'Rolle für ' + user.displayName"
+                >
+                  @for (role of roles; track role.value) {
+                    <option [ngValue]="role.value">{{ role.label }}</option>
+                  }
+                </select>
               </td>
               <td>{{ user.teamDisplayName || '-' }}</td>
+              <td>
+                <span class="status-badge" [class.inactive]="!user.isActive">
+                  {{ user.isActive ? 'Aktiv' : 'Deaktiviert' }}
+                </span>
+                @if (user.mustChangePassword) {
+                  <small>Passwortwechsel offen</small>
+                }
+              </td>
               <td>
                 <div class="row-actions">
                   <button
                     type="button"
                     class="reset-button"
                     (click)="resetPassword(user)"
-                    [disabled]="resettingUserId() === user.id"
+                    [disabled]="processingUserId() === user.id || !user.isActive"
                   >
-                    {{ resettingUserId() === user.id ? 'Setzt zurück...' : 'Passwort zurücksetzen' }}
+                    Neues Temp-Passwort
                   </button>
 
                   <button
                     type="button"
                     class="delete-button"
-                    (click)="deleteUser(user)"
-                    [disabled]="deletingUserId() === user.id"
+                    (click)="toggleActive(user)"
+                    [disabled]="processingUserId() === user.id || isCurrentUser(user)"
                   >
-                    {{ deletingUserId() === user.id ? 'Löscht...' : 'Löschen' }}
+                    {{ user.isActive ? 'Deaktivieren' : 'Aktivieren' }}
                   </button>
                 </div>
               </td>

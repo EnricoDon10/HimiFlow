@@ -1,8 +1,9 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Team } from '../../../core/models/master-data.model';
 import { UserManagementUser } from '../../../core/models/user-management.model';
+import { AuthService } from '../../../core/services/auth.service';
 import { MasterDataService } from '../../../core/services/master-data.service';
 import { UserManagementService } from '../../../core/services/user-management.service';
 
@@ -19,28 +20,27 @@ export class UserManagementComponent implements OnInit {
 
   readonly isLoading = signal(false);
   readonly isCreating = signal(false);
-  readonly deletingUserId = signal<string | null>(null);
-  readonly resettingUserId = signal<string | null>(null);
+  readonly processingUserId = signal<string | null>(null);
 
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
-  readonly resetPasswordMessage = signal<string | null>(null);
+  readonly temporaryPasswordMessage = signal<string | null>(null);
 
   userName = '';
   displayName = '';
-  password = 'Demo123!';
   roleName = 'Mitarbeiter';
   teamId: number | null = null;
 
   readonly roles = [
     { value: 'Mitarbeiter', label: 'Mitarbeiter' },
-    { value: 'Fuehrungskraft', label: 'Führungskraft' },
-    { value: 'Admin', label: 'Admin' }
+    { value: 'FachAdmin', label: 'Fach-Admin / Führungskraft' },
+    { value: 'SystemAdmin', label: 'System-Admin / IT-Admin' }
   ];
 
   constructor(
     private readonly userManagementService: UserManagementService,
-    private readonly masterDataService: MasterDataService
+    private readonly masterDataService: MasterDataService,
+    private readonly authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -57,8 +57,8 @@ export class UserManagementComponent implements OnInit {
         this.users.set(users);
         this.isLoading.set(false);
       },
-      error: () => {
-        this.errorMessage.set('Benutzer konnten nicht geladen werden.');
+      error: (error) => {
+        this.errorMessage.set(this.extractErrorMessage(error, 'Benutzer konnten nicht geladen werden.'));
         this.isLoading.set(false);
       }
     });
@@ -79,7 +79,7 @@ export class UserManagementComponent implements OnInit {
   createUser(): void {
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    this.resetPasswordMessage.set(null);
+    this.temporaryPasswordMessage.set(null);
 
     const validationError = this.validateCreateForm();
 
@@ -93,13 +93,15 @@ export class UserManagementComponent implements OnInit {
     this.userManagementService.createUser({
       userName: this.userName.trim(),
       displayName: this.displayName.trim(),
-      password: this.password.trim(),
       roleName: this.roleName,
-      teamId: this.roleName === 'Admin' ? null : this.teamId
+      teamId: this.roleName === 'SystemAdmin' ? null : this.teamId
     }).subscribe({
-      next: (createdUser) => {
-        this.users.set([...this.users(), createdUser]);
-        this.successMessage.set('Benutzer wurde erfolgreich angelegt.');
+      next: (response) => {
+        this.users.set([...this.users(), response.user]);
+        this.successMessage.set('Benutzer wurde angelegt. Das temporäre Passwort wird nur jetzt angezeigt.');
+        this.temporaryPasswordMessage.set(
+          `${response.user.displayName}: ${response.temporaryPassword}`
+        );
         this.resetCreateForm();
         this.isCreating.set(false);
       },
@@ -111,62 +113,83 @@ export class UserManagementComponent implements OnInit {
   }
 
   resetPassword(user: UserManagementUser): void {
-    const confirmed = confirm(
-      `Passwort für ${user.displayName} wirklich auf Demo123! zurücksetzen?`
-    );
-
-    if (!confirmed) {
+    if (!confirm(`Für ${user.displayName} ein neues temporäres Passwort erzeugen?`)) {
       return;
     }
 
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    this.resetPasswordMessage.set(null);
-    this.resettingUserId.set(user.id);
+    this.startAction(user.id);
 
     this.userManagementService.resetPassword(user.id).subscribe({
       next: (response) => {
-        this.resetPasswordMessage.set(
-          `Passwort für ${response.displayName} wurde auf ${response.newPassword} zurückgesetzt.`
+        this.temporaryPasswordMessage.set(
+          `${response.displayName}: ${response.temporaryPassword}`
         );
-        this.resettingUserId.set(null);
+        this.successMessage.set('Passwort zurückgesetzt. Das temporäre Passwort wird nur jetzt angezeigt.');
+        this.finishAction();
+        this.loadUsers();
       },
-      error: () => {
-        this.errorMessage.set('Passwort konnte nicht zurückgesetzt werden.');
-        this.resettingUserId.set(null);
+      error: (error) => {
+        this.errorMessage.set(this.extractErrorMessage(error, 'Passwort konnte nicht zurückgesetzt werden.'));
+        this.finishAction();
       }
     });
   }
 
-  deleteUser(user: UserManagementUser): void {
-    const confirmed = confirm(
-      `Benutzer ${user.displayName} wirklich löschen?`
-    );
-
-    if (!confirmed) {
+  changeRole(user: UserManagementUser, roleName: string): void {
+    if (roleName === user.roleName) {
       return;
     }
 
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
-    this.resetPasswordMessage.set(null);
-    this.deletingUserId.set(user.id);
+    const previousRole = user.roleName;
+    user.roleName = roleName;
+    this.startAction(user.id);
 
-    this.userManagementService.deleteUser(user.id).subscribe({
-      next: () => {
-        this.users.set(this.users().filter(item => item.id !== user.id));
-        this.successMessage.set('Benutzer wurde erfolgreich gelöscht.');
-        this.deletingUserId.set(null);
+    this.userManagementService.changeRole(user.id, { roleName }).subscribe({
+      next: (updatedUser) => {
+        this.users.set(this.users().map(item => item.id === updatedUser.id ? updatedUser : item));
+        this.successMessage.set('Rolle wurde geändert. Die bisherige Sitzung des Benutzers ist damit ungültig.');
+        this.finishAction();
       },
       error: (error) => {
+        user.roleName = previousRole;
+        this.users.set([...this.users()]);
         this.errorMessage.set(this.extractErrorMessage(error));
-        this.deletingUserId.set(null);
+        this.finishAction();
       }
     });
   }
 
+  toggleActive(user: UserManagementUser): void {
+    const action = user.isActive ? 'deaktivieren' : 'aktivieren';
+
+    if (!confirm(`Benutzer ${user.displayName} wirklich ${action}?`)) {
+      return;
+    }
+
+    this.startAction(user.id);
+    const request$ = user.isActive
+      ? this.userManagementService.deactivate(user.id)
+      : this.userManagementService.activate(user.id);
+
+    request$.subscribe({
+      next: () => {
+        this.successMessage.set(`Benutzer wurde ${user.isActive ? 'deaktiviert' : 'aktiviert'}.`);
+        this.finishAction();
+        this.loadUsers();
+      },
+      error: (error) => {
+        this.errorMessage.set(this.extractErrorMessage(error));
+        this.finishAction();
+      }
+    });
+  }
+
+  isCurrentUser(user: UserManagementUser): boolean {
+    return this.authService.currentUser()?.userId === user.id;
+  }
+
   onRoleChanged(): void {
-    if (this.roleName === 'Admin') {
+    if (this.roleName === 'SystemAdmin') {
       this.teamId = null;
       return;
     }
@@ -177,15 +200,19 @@ export class UserManagementComponent implements OnInit {
   }
 
   getRoleBadgeClass(roleName: string): string {
-    if (roleName === 'Admin') {
-      return 'admin';
+    if (roleName === 'SystemAdmin') {
+      return 'system-admin';
     }
 
-    if (roleName === 'Fuehrungskraft') {
-      return 'lead';
+    if (roleName === 'FachAdmin') {
+      return 'fach-admin';
     }
 
     return 'employee';
+  }
+
+  getRoleLabel(roleName: string): string {
+    return this.roles.find(role => role.value === roleName)?.label ?? roleName;
   }
 
   private validateCreateForm(): string | null {
@@ -197,19 +224,11 @@ export class UserManagementComponent implements OnInit {
       return 'Bitte Anzeigename eingeben.';
     }
 
-    if (!this.password.trim()) {
-      return 'Bitte Passwort eingeben.';
-    }
-
-    if (this.password.trim().length < 6) {
-      return 'Passwort muss mindestens 6 Zeichen lang sein.';
-    }
-
     if (!this.roleName) {
       return 'Bitte Rolle auswählen.';
     }
 
-    if (this.roleName !== 'Admin' && !this.teamId) {
+    if (this.roleName !== 'SystemAdmin' && !this.teamId) {
       return 'Bitte Team auswählen.';
     }
 
@@ -219,23 +238,31 @@ export class UserManagementComponent implements OnInit {
   private resetCreateForm(): void {
     this.userName = '';
     this.displayName = '';
-    this.password = 'Demo123!';
     this.roleName = 'Mitarbeiter';
     this.teamId = this.teams()[0]?.id ?? null;
   }
 
-  private extractErrorMessage(error: unknown): string {
-    const fallback = 'Aktion konnte nicht ausgeführt werden.';
+  private startAction(userId: string): void {
+    this.errorMessage.set(null);
+    this.successMessage.set(null);
+    this.temporaryPasswordMessage.set(null);
+    this.processingUserId.set(userId);
+  }
 
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'error' in error
-    ) {
-      const apiError = (error as { error?: { errors?: string[] } }).error;
+  private finishAction(): void {
+    this.processingUserId.set(null);
+  }
+
+  private extractErrorMessage(error: unknown, fallback = 'Aktion konnte nicht ausgeführt werden.'): string {
+    if (typeof error === 'object' && error !== null && 'error' in error) {
+      const apiError = (error as { error?: { errors?: string[]; detail?: string } }).error;
 
       if (apiError?.errors?.length) {
         return apiError.errors.join(' ');
+      }
+
+      if (apiError?.detail) {
+        return apiError.detail;
       }
     }
 

@@ -2,6 +2,8 @@
 using Einsparungs.Api.Data;
 using Einsparungs.Api.DTOs;
 using Einsparungs.Api.Models;
+using Einsparungs.Api.Security;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +12,7 @@ namespace Einsparungs.Api.Controllers;
 
 [ApiController]
 [Route("api/savings")]
-[Authorize]
+[Authorize(Roles = ApplicationRoles.Mitarbeiter + "," + ApplicationRoles.FachAdmin)]
 public class SavingsController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -40,7 +42,7 @@ public class SavingsController : ControllerBase
     }
 
     [HttpGet("all")]
-    [Authorize(Roles = "Fuehrungskraft,Admin")]
+    [Authorize(Roles = ApplicationRoles.FachAdmin)]
     public async Task<ActionResult<List<SavingsEntryResponse>>> GetAllSavings()
     {
         var entries = await SavingsResponseQuery()
@@ -259,7 +261,7 @@ public class SavingsController : ControllerBase
                 ProductGroupDisplayValue = x.ProductGroup.DisplayValue,
                 TransmissionDate = x.TransmissionDate,
                 CreatedByUserId = x.CreatedByUserId,
-                CreatedByUserName = x.CreatedByUser.UserName,
+                CreatedByUserName = x.CreatedByUser.UserName ?? string.Empty,
                 CreatedByDisplayName = x.CreatedByUser.DisplayName,
                 CreatedAt = x.CreatedAt,
                 UpdatedByUserId = x.UpdatedByUserId,
@@ -331,11 +333,12 @@ public class SavingsController : ControllerBase
 
     private Guid GetCurrentUserId()
     {
-        var userIdValue = User.FindFirst("userId")?.Value;
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier) ??
+                          User.FindFirstValue(SecurityClaims.UserId);
 
         if (!Guid.TryParse(userIdValue, out var userId))
         {
-            throw new InvalidOperationException("Der aktuelle Benutzer konnte nicht aus dem Token ermittelt werden.");
+            throw new InvalidOperationException("Der aktuelle Benutzer konnte nicht aus der Sitzung ermittelt werden.");
         }
 
         return userId;
@@ -343,7 +346,7 @@ public class SavingsController : ControllerBase
 
     private bool CanManageAllRecords()
     {
-        return User.IsInRole("Fuehrungskraft") || User.IsInRole("Admin");
+        return User.IsInRole(ApplicationRoles.FachAdmin);
     }
 
     private static bool IsValidKvnr(string kvnr)
@@ -385,7 +388,7 @@ public class SavingsController : ControllerBase
         {
             entry.Id,
             entry.Month,
-            entry.Kvnr,
+            Kvnr = PrivacyMasking.MaskKvnr(entry.Kvnr),
             entry.OldKvAmount,
             entry.NewKvAmount,
             entry.SavingAmount,
@@ -419,5 +422,6 @@ public class SavingsController : ControllerBase
             UserAgent = Request.Headers.UserAgent.ToString()
         });
     }
+
 }
 

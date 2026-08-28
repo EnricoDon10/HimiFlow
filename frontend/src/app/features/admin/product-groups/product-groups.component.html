@@ -8,6 +8,12 @@
   <button type="button" (click)="loadProductGroups()">Aktualisieren</button>
 </section>
 
+@if (licenseService.isReadOnly()) {
+  <section class="message warning" role="status">
+    Die Lizenz ist abgelaufen. Produktgruppen können im schreibgeschützten Modus nicht geändert werden.
+  </section>
+}
+
 @if (errorMessage()) {
   <section class="message error">
     {{ errorMessage() }}

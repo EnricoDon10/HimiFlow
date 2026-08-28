@@ -148,6 +148,8 @@ dist
 *.db
 *.db-shm
 *.db-wal
+**/backups/
+artifacts/
 
 # VS Code / Visual Studio local files
 .vs/

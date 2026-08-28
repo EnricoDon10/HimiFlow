@@ -6,7 +6,7 @@
   </div>
 
   <div class="header-actions">
-    <a routerLink="/savings/new">Neue Einsparung erfassen</a>
+    <a routerLink="/savings/new" [class.disabled-link]="licenseService.isReadOnly()" [attr.aria-disabled]="licenseService.isReadOnly()">Neue Einsparung erfassen</a>
     <button type="button" (click)="loadMySavings()">Aktualisieren</button>
   </div>
 </section>
@@ -20,6 +20,12 @@
 @if (successMessage()) {
   <section class="message success">
     {{ successMessage() }}
+  </section>
+}
+
+@if (licenseService.isReadOnly()) {
+  <section class="message warning" role="status">
+    Die Lizenz ist abgelaufen. Eigene Datensätze bleiben sichtbar, Bearbeiten und Löschen sind gesperrt.
   </section>
 }
 
@@ -140,7 +146,7 @@
 
       <div class="edit-actions">
         <button type="button" class="ghost-button" (click)="cancelEdit()">Abbrechen</button>
-        <button type="submit" [disabled]="isSavingEdit()">
+        <button type="submit" [disabled]="isSavingEdit() || licenseService.isReadOnly()">
           {{ isSavingEdit() ? 'Speichern läuft...' : 'Änderungen speichern' }}
         </button>
       </div>
@@ -195,7 +201,7 @@
             <tr>
               <td>
                 <div class="row-actions">
-                  <button type="button" class="edit-button" (click)="startEdit(entry)">
+                  <button type="button" class="edit-button" (click)="startEdit(entry)" [disabled]="licenseService.isReadOnly()">
                     Bearbeiten
                   </button>
 
@@ -203,7 +209,7 @@
                     type="button"
                     class="delete-button"
                     (click)="deleteEntry(entry)"
-                    [disabled]="deletingEntryId() === entry.id"
+                    [disabled]="deletingEntryId() === entry.id || licenseService.isReadOnly()"
                   >
                     {{ deletingEntryId() === entry.id ? 'Löscht...' : 'Löschen' }}
                   </button>

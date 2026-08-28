@@ -1,16 +1,17 @@
 using Einsparungs.Api.Models;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Einsparungs.Api.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityUserContext<AppUser, Guid>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
     }
 
-    public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<AppRole> Roles => Set<AppRole>();
     public DbSet<AppUserRole> UserRoles => Set<AppUserRole>();
     public DbSet<Team> Teams => Set<Team>();
@@ -18,14 +19,22 @@ public class AppDbContext : DbContext
     public DbSet<ProductGroup> ProductGroups => Set<ProductGroup>();
     public DbSet<SavingsEntry> SavingsEntries => Set<SavingsEntry>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<LicenseInstallation> LicenseInstallations => Set<LicenseInstallation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<AppUser>()
-            .HasIndex(x => x.UserName)
-            .IsUnique();
+        modelBuilder.Entity<AppUser>(entity =>
+        {
+            entity.ToTable("Users");
+            entity.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(x => x.LockoutEnabled).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable("UserClaims");
+        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable("UserLogins");
+        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("UserTokens");
 
         modelBuilder.Entity<AppRole>()
             .HasIndex(x => x.Name)
@@ -103,12 +112,12 @@ public class AppDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<SavingsEntry>()
-            .ToTable(t =>
+            .ToTable(table =>
             {
-                t.HasCheckConstraint("CK_SavingsEntry_OldKvAmount_NotNegative", "OldKvAmount >= 0");
-                t.HasCheckConstraint("CK_SavingsEntry_NewKvAmount_NotNegative", "NewKvAmount >= 0");
-                t.HasCheckConstraint("CK_SavingsEntry_NewKvAmount_LessOrEqual_OldKvAmount", "NewKvAmount <= OldKvAmount");
-                t.HasCheckConstraint("CK_SavingsEntry_Kvnr_Length", "length(Kvnr) = 10");
+                table.HasCheckConstraint("CK_SavingsEntry_OldKvAmount_NotNegative", "OldKvAmount >= 0");
+                table.HasCheckConstraint("CK_SavingsEntry_NewKvAmount_NotNegative", "NewKvAmount >= 0");
+                table.HasCheckConstraint("CK_SavingsEntry_NewKvAmount_LessOrEqual_OldKvAmount", "NewKvAmount <= OldKvAmount");
+                table.HasCheckConstraint("CK_SavingsEntry_Kvnr_Length", "length(Kvnr) = 10");
             });
 
         modelBuilder.Entity<AuditLog>()
@@ -116,5 +125,15 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(x => x.ChangedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<LicenseInstallation>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.LicenseKey).HasMaxLength(12000).IsRequired();
+            entity.HasOne(x => x.InstalledByUser)
+                .WithMany()
+                .HasForeignKey(x => x.InstalledByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
     }
 }

@@ -2,17 +2,8 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MonthlyStatisticsItem } from '../../core/models/statistics.model';
+import { AuthService } from '../../core/services/auth.service';
 import { StatisticsService } from '../../core/services/statistics.service';
-
-interface DashboardUser {
-  username?: string;
-  userName?: string;
-  displayName?: string;
-  role?: string;
-  roleName?: string;
-  userRole?: string;
-  roles?: string[];
-}
 
 @Component({
   selector: 'app-dashboard',
@@ -26,9 +17,10 @@ export class DashboardComponent implements OnInit {
   readonly isLoadingStatistics = signal(false);
   readonly statisticsErrorMessage = signal<string | null>(null);
 
-  readonly currentUser = signal<DashboardUser | null>(this.getUserFromLocalStorage());
-
-  constructor(private readonly statisticsService: StatisticsService) {}
+  constructor(
+    readonly authService: AuthService,
+    private readonly statisticsService: StatisticsService
+  ) {}
 
   ngOnInit(): void {
     this.loadMonthlyStatistics();
@@ -51,61 +43,31 @@ export class DashboardComponent implements OnInit {
   }
 
   getDisplayName(): string {
-    const user = this.currentUser();
+    const user = this.authService.currentUser();
 
-    return user?.displayName || user?.userName || user?.username || 'Benutzer';
+    return user?.displayName || user?.userName || 'Benutzer';
   }
 
   getUsername(): string {
-    const user = this.currentUser();
+    const user = this.authService.currentUser();
 
-    return user?.userName || user?.username || '-';
+    return user?.userName || '-';
   }
 
   getRole(): string {
-    const roles = this.getRoles();
-
-    return roles[0] || '-';
+    return this.authService.currentUser()?.roles[0] || '-';
   }
 
   getRoles(): string[] {
-    const user = this.currentUser();
-
-    if (!user) {
-      return [];
-    }
-
-    const roles = new Set<string>();
-
-    if (user.role) {
-      roles.add(user.role);
-    }
-
-    if (user.roleName) {
-      roles.add(user.roleName);
-    }
-
-    if (user.userRole) {
-      roles.add(user.userRole);
-    }
-
-    if (Array.isArray(user.roles)) {
-      for (const role of user.roles) {
-        roles.add(role);
-      }
-    }
-
-    return [...roles];
+    return this.authService.currentUser()?.roles ?? [];
   }
 
   canViewAllSavings(): boolean {
-    const roles = this.getRoles();
-
-    return roles.includes('Admin') || roles.includes('Fuehrungskraft');
+    return this.authService.canSeeAllSavings();
   }
 
   canExport(): boolean {
-    return this.canViewAllSavings();
+    return this.authService.canExport();
   }
 
   getMonthlyLabel(item: MonthlyStatisticsItem): string {
@@ -187,20 +149,6 @@ export class DashboardComponent implements OnInit {
       style: 'currency',
       currency: 'EUR'
     }).format(value || 0);
-  }
-
-  private getUserFromLocalStorage(): DashboardUser | null {
-    const rawUser = localStorage.getItem('einsparungsdatenbank_user');
-
-    if (!rawUser) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(rawUser) as DashboardUser;
-    } catch {
-      return null;
-    }
   }
 
   private getNumberFromObject(source: unknown, keys: string[]): number {

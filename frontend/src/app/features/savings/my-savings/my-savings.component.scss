@@ -97,6 +97,16 @@
   color: #166534;
 }
 
+.message.warning {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.disabled-link {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
 .edit-card {
   margin-bottom: 1.5rem;
   border: 1px solid #FED7AA;

@@ -4,7 +4,7 @@ Stand: Reifegrad 4 · SQLite Local Edition
 
 ## Voraussetzungen
 
-- .NET 8 SDK zum Bauen; .NET 8 Runtime auf dem Zielsystem
+- .NET 10 SDK zum Bauen; .NET 10 ASP.NET Core Runtime auf dem Zielsystem
 - Node.js/npm passend zu `frontend/package.json`
 - PowerShell 7 oder Windows PowerShell 5.1
 - für Production: vom Kunden freigegebener Hostname, TLS-Zertifikat und Secret-/Konfigurationsweg
@@ -88,7 +88,7 @@ Manuell aus dem veröffentlichten Paket:
 Restore nur bei vollständig gestoppter API:
 
 ```powershell
-.\deploy\Restore-SqliteBackup.ps1 -BackupFile "C:\Backup\einsparungen_....db"
+.\deploy\Restore-SqliteBackup.ps1 -BackupFile "C:\Backup\einsparungen_....db" -DatabaseFile "C:\ProgramData\HimiFlow\data\einsparungen.db"
 ```
 
 Das Skript validiert das Backup, prüft den exklusiven Datenbankzugriff, erstellt eine Sicherheitskopie und validiert das Restore-Ergebnis. Siehe [Backup- und Restore-Konzept](../docs/backup-und-restore-konzept.md).
@@ -97,15 +97,18 @@ Das Skript validiert das Backup, prüft den exklusiven Datenbankzugriff, erstell
 
 - `GET /api/health/live`: Prozess
 - `GET /api/health/ready`: Datenbank
-- `GET /api/health`: kombiniert
+- `GET /api/health`: grundlegender Anwendungs-/Datenbankstatus
+- `GET /api/health/operations`: betrieblicher Backupstatus; `Degraded` bei fehlendem oder überfälligem SQLite-Backup
 - `GET /api/public/product-info`: Version und Anbieterangaben
 - `GET /api/operations/backup-status`: Backupstatus, nur `SystemAdmin`
 
 Unangemeldete Admin-Aufrufe müssen 401, fachlich unberechtigte Aufrufe 403 liefern. Fehlerantworten enthalten eine `traceId`, mit der der Vorgang im Serverprotokoll zugeordnet werden kann.
 
-## SQL Server – ausschließlich Phase Inbetriebnahme
+## SQL Server
 
-Der Anwendungscode kennt `Database:Provider=SqlServer`, aber die aktuellen Migrationen sind SQLite-spezifisch. HimiFlow blockiert deshalb `--migrate` und `--seed` für SQL Server. In der Zielphase werden eine eigene SQL-Server-Migrationshistorie, verschlüsselte Verbindung, Least-Privilege-Dienstkonto, Datenübernahme, Index-/Performanceprüfung, SQL-Backup/Restore und Kundenabnahme durchgeführt.
+Für SQL Server existiert eine getrennte, reproduzierbare Migrationshistorie. `--migrate` und `--seed` wählen anhand von `Database__Provider` automatisch den richtigen Provider. In Production erzwingt HimiFlow für SQL Server `Encrypt=True` und `TrustServerCertificate=False`.
+
+Initialisierung, Updates, idempotentes DBA-Prüfskript und Least-Privilege-Vorgaben stehen im [SQL-Server-Produktionsweg](../docs/sql-server-produktionsweg.md). Die reale Datenübernahme, Kundenverbindung, Backup-/Restore-Abnahme und Performanceprüfung bleiben Bestandteil der Inbetriebnahme.
 
 ## Release-Checkliste
 

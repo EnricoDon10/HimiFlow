@@ -7,6 +7,7 @@ import { SavingsEntryResponse } from '../../../core/models/savings-entry.model';
 import { MasterDataService } from '../../../core/services/master-data.service';
 import { SavingsService } from '../../../core/services/savings.service';
 import { LicenseService } from '../../../core/services/license.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { forkJoin } from 'rxjs';
 
 @Component({
@@ -42,6 +43,7 @@ export class MySavingsComponent implements OnInit {
   constructor(
     private readonly savingsService: SavingsService,
     private readonly masterDataService: MasterDataService,
+    readonly authService: AuthService,
     readonly licenseService: LicenseService
   ) {}
 
@@ -103,7 +105,9 @@ export class MySavingsComponent implements OnInit {
     this.editKvnr = entry.kvnr;
     this.editOldKvAmount = entry.oldKvAmount;
     this.editNewKvAmount = entry.newKvAmount;
-    this.editTeamId = entry.teamId;
+    this.editTeamId = this.canSelectTeam()
+      ? entry.teamId
+      : this.authService.currentUser()?.teamId ?? entry.teamId;
     this.editSavingReasonId = entry.savingReasonId;
     this.editProductGroupId = entry.productGroupId;
     this.editProductGroupSearch = '';
@@ -144,6 +148,7 @@ export class MySavingsComponent implements OnInit {
     this.isSavingEdit.set(true);
 
     this.savingsService.update(entry.id, {
+      expectedVersion: entry.version,
       month: `${this.editMonth}-01T00:00:00`,
       kvnr: this.editKvnr.trim(),
       oldKvAmount: Number(this.editOldKvAmount ?? 0),
@@ -290,6 +295,10 @@ export class MySavingsComponent implements OnInit {
     }).format(value || 0);
   }
 
+  canSelectTeam(): boolean {
+    return this.authService.hasRole('FachAdmin');
+  }
+
   formatMonth(value: string): string {
     const date = new Date(value);
 
@@ -385,7 +394,15 @@ export class MySavingsComponent implements OnInit {
       error !== null &&
       'error' in error
     ) {
-      const apiError = (error as { error?: { errors?: string[] } }).error;
+      const apiError = (error as {
+        status?: number;
+        error?: { code?: string; detail?: string; errors?: string[] };
+      }).error;
+
+      if (apiError?.code === 'CONCURRENCY_CONFLICT') {
+        return apiError.detail ??
+          'Der Datensatz wurde zwischenzeitlich geändert. Bitte laden Sie die aktuellen Daten neu.';
+      }
 
       if (apiError?.errors?.length) {
         return apiError.errors.join(' ');

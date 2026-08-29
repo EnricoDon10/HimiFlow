@@ -5,6 +5,7 @@ param(
 
     [string]$PublishRoot = (Join-Path (Split-Path $PSScriptRoot -Parent) "artifacts\api"),
 
+    [Parameter(Mandatory = $true)]
     [string]$DatabaseFile
 )
 
@@ -12,10 +13,6 @@ $ErrorActionPreference = "Stop"
 $resolvedPublishRoot = [System.IO.Path]::GetFullPath($PublishRoot)
 $apiAssembly = Join-Path $resolvedPublishRoot "Einsparungs.Api.dll"
 $resolvedBackupFile = [System.IO.Path]::GetFullPath($BackupFile)
-
-if ([string]::IsNullOrWhiteSpace($DatabaseFile)) {
-    $DatabaseFile = Join-Path $resolvedPublishRoot "einsparungen.db"
-}
 
 $resolvedDatabaseFile = [System.IO.Path]::GetFullPath($DatabaseFile)
 $databaseDirectory = [System.IO.Path]::GetDirectoryName($resolvedDatabaseFile)
@@ -55,9 +52,14 @@ try {
         throw "Das ausgewählte Backup ist ungültig."
     }
 
-    dotnet .\Einsparungs.Api.dll --backup-now
+    $safetyDirectory = Join-Path $databaseDirectory "restore-safety-backups"
+    New-Item -ItemType Directory -Path $safetyDirectory -Force | Out-Null
+    $safetyBackupFile = Join-Path $safetyDirectory ("pre_restore_" + (Get-Date -Format "yyyyMMdd_HHmmss") + "_" + [Guid]::NewGuid().ToString("N") + ".db")
+    Copy-Item -LiteralPath $resolvedDatabaseFile -Destination $safetyBackupFile
+
+    dotnet .\Einsparungs.Api.dll --validate-backup $safetyBackupFile
     if ($LASTEXITCODE -ne 0) {
-        throw "Das Sicherheitsbackup der aktuellen Datenbank ist fehlgeschlagen."
+        throw "Das Sicherheitsbackup der exakten Zieldatenbank ist fehlgeschlagen oder ungültig."
     }
 
     $temporaryRestoreFile = Join-Path $databaseDirectory (".himiflow-restore-" + [Guid]::NewGuid().ToString("N") + ".tmp")
@@ -86,4 +88,4 @@ finally {
 }
 
 Write-Host "SQLite-Restore erfolgreich abgeschlossen: $resolvedDatabaseFile"
-Write-Host "Vor dem Restore wurde automatisch ein Sicherheitsbackup der bisherigen Datenbank erstellt."
+Write-Host "Sicherheitsbackup der bisherigen Zieldatenbank: $safetyBackupFile"

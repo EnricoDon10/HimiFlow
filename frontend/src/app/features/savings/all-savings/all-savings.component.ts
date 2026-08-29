@@ -3,7 +3,12 @@ import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { ProductGroup, SavingReason, Team } from '../../../core/models/master-data.model';
-import { SavingsEntryResponse } from '../../../core/models/savings-entry.model';
+import {
+  PagedResponse,
+  SavingsEntryResponse,
+  SavingsHistoryEntry,
+  SavingsListQuery
+} from '../../../core/models/savings-entry.model';
 import { MasterDataService } from '../../../core/services/master-data.service';
 import { ExportsService } from '../../../core/services/exports.service';
 import { SavingsService } from '../../../core/services/savings.service';
@@ -28,6 +33,18 @@ export class AllSavingsComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly editingEntry = signal<SavingsEntryResponse | null>(null);
+  readonly historyEntry = signal<SavingsEntryResponse | null>(null);
+  readonly historyItems = signal<SavingsHistoryEntry[]>([]);
+  readonly isLoadingHistory = signal(false);
+  readonly page = signal(1);
+  readonly totalCount = signal(0);
+  readonly totalPages = signal(0);
+
+  pageSize = 50;
+  filterMonth = '';
+  filterTeamId: number | null = null;
+  filterSavingReasonId: number | null = null;
+  filterProductGroupId: number | null = null;
 
   editMonth = '';
   editKvnr = '';
@@ -54,13 +71,13 @@ export class AllSavingsComponent implements OnInit {
     this.errorMessage.set(null);
 
     forkJoin({
-      savingsEntries: this.savingsService.getAllSavings(),
+      savingsPage: this.savingsService.getAllSavings(this.buildListQuery()),
       teams: this.masterDataService.getTeams(),
       savingReasons: this.masterDataService.getSavingReasons(),
       productGroups: this.masterDataService.getProductGroups()
     }).subscribe({
       next: (result) => {
-        this.savingsEntries.set(result.savingsEntries);
+        this.applyPage(result.savingsPage);
         this.teams.set(result.teams);
         this.savingReasons.set(result.savingReasons);
         this.productGroups.set(result.productGroups);
@@ -77,9 +94,9 @@ export class AllSavingsComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    this.savingsService.getAllSavings().subscribe({
-      next: (entries) => {
-        this.savingsEntries.set(entries);
+    this.savingsService.getAllSavings(this.buildListQuery()).subscribe({
+      next: (result) => {
+        this.applyPage(result);
         this.isLoading.set(false);
       },
       error: () => {
@@ -87,6 +104,35 @@ export class AllSavingsComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
+
+  applyFilters(): void {
+    this.page.set(1);
+    this.loadAllSavings();
+  }
+
+  clearFilters(): void {
+    this.filterMonth = '';
+    this.filterTeamId = null;
+    this.filterSavingReasonId = null;
+    this.filterProductGroupId = null;
+    this.page.set(1);
+    this.loadAllSavings();
+  }
+
+  changePage(targetPage: number): void {
+    if (targetPage < 1 || targetPage > this.totalPages() || targetPage === this.page()) {
+      return;
+    }
+
+    this.page.set(targetPage);
+    this.loadAllSavings();
+  }
+
+  changePageSize(value: number): void {
+    this.pageSize = Number(value);
+    this.page.set(1);
+    this.loadAllSavings();
   }
 
   downloadCsv(): void {
@@ -193,6 +239,7 @@ export class AllSavingsComponent implements OnInit {
     this.isSavingEdit.set(true);
 
     this.savingsService.update(entry.id, {
+      expectedVersion: entry.version,
       month: `${this.editMonth}-01T00:00:00`,
       kvnr: this.editKvnr.trim(),
       oldKvAmount: Number(this.editOldKvAmount ?? 0),
@@ -234,16 +281,13 @@ export class AllSavingsComponent implements OnInit {
 
     this.savingsService.delete(entry.id).subscribe({
       next: () => {
-        this.savingsEntries.set(
-          this.savingsEntries().filter((item) => item.id !== entry.id)
-        );
-
         if (this.editingEntry()?.id === entry.id) {
           this.editingEntry.set(null);
         }
 
         this.successMessage.set('Datensatz wurde erfolgreich gelöscht.');
         this.deletingEntryId.set(null);
+        this.loadAllSavings();
       },
       error: () => {
         this.errorMessage.set('Datensatz konnte nicht gelöscht werden.');
@@ -439,7 +483,15 @@ export class AllSavingsComponent implements OnInit {
       error !== null &&
       'error' in error
     ) {
-      const apiError = (error as { error?: { errors?: string[] } }).error;
+      const apiError = (error as {
+        status?: number;
+        error?: { code?: string; detail?: string; errors?: string[] };
+      }).error;
+
+      if (apiError?.code === 'CONCURRENCY_CONFLICT') {
+        return apiError.detail ??
+          'Der Datensatz wurde zwischenzeitlich geändert. Bitte laden Sie die aktuellen Daten neu.';
+      }
 
       if (apiError?.errors?.length) {
         return apiError.errors.join(' ');
@@ -447,6 +499,59 @@ export class AllSavingsComponent implements OnInit {
     }
 
     return fallback;
+  }
+
+  showHistory(entry: SavingsEntryResponse): void {
+    this.historyEntry.set(entry);
+    this.historyItems.set([]);
+    this.isLoadingHistory.set(true);
+    this.errorMessage.set(null);
+
+    this.savingsService.getHistory(entry.id).subscribe({
+      next: (items) => {
+        this.historyItems.set(items);
+        this.isLoadingHistory.set(false);
+      },
+      error: () => {
+        this.errorMessage.set('Änderungshistorie konnte nicht geladen werden.');
+        this.isLoadingHistory.set(false);
+      }
+    });
+  }
+
+  closeHistory(): void {
+    this.historyEntry.set(null);
+    this.historyItems.set([]);
+  }
+
+  historyActionLabel(action: string): string {
+    return ({ Created: 'Erstellt', Updated: 'Bearbeitet', Deleted: 'Gelöscht' } as Record<string, string>)[action] ?? action;
+  }
+
+  maskKvnrForDisplay(value: string | undefined): string {
+    if (!value || value.length < 4) {
+      return '–';
+    }
+
+    return `${value[0]}${'*'.repeat(Math.max(0, value.length - 4))}${value.slice(-3)}`;
+  }
+
+  private buildListQuery(): SavingsListQuery {
+    return {
+      page: this.page(),
+      pageSize: this.pageSize,
+      month: this.filterMonth ? `${this.filterMonth}-01T00:00:00` : undefined,
+      teamId: this.filterTeamId ?? undefined,
+      savingReasonId: this.filterSavingReasonId ?? undefined,
+      productGroupId: this.filterProductGroupId ?? undefined
+    };
+  }
+
+  private applyPage(result: PagedResponse<SavingsEntryResponse>): void {
+    this.savingsEntries.set(result.items);
+    this.page.set(result.page);
+    this.totalCount.set(result.totalCount);
+    this.totalPages.set(result.totalPages);
   }
 
   private maskKvnr(value: string): string {

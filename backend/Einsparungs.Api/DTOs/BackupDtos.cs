@@ -9,8 +9,13 @@ public sealed record BackupResponse(
 public sealed record BackupStatusResponse(
     bool AutomaticEnabled,
     int IntervalHours,
+    int MaximumAgeHours,
     int RetentionDays,
     int MinimumBackupsToKeep,
     DateTime? LatestBackupAtUtc,
     DateTime? NextBackupDueAtUtc,
-    int AvailableBackups);
+    int AvailableBackups,
+    bool IsMissing,
+    bool IsOverdue,
+    string Status,
+    string Message);

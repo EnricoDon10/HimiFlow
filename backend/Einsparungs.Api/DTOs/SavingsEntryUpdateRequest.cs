@@ -4,6 +4,9 @@ namespace Einsparungs.Api.DTOs;
 
 public class SavingsEntryUpdateRequest
 {
+    [Range(1, int.MaxValue)]
+    public int ExpectedVersion { get; set; }
+
     [Required]
     public DateTime Month { get; set; }
 

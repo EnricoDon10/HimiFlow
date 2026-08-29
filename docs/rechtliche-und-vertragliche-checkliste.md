@@ -1,6 +1,6 @@
 # Rechtliche und vertragliche Checkliste für den Verkauf
 
-Stand: 28.08.2026
+Stand: 29.08.2026
 
 Diese Checkliste kennzeichnet Produkt- und Vertragsentscheidungen. Sie ist keine Rechtsberatung. Vor Angebot, Vertrag und Auslieferung sollten ein auf IT-/Datenschutzrecht spezialisierter Rechtsanwalt sowie Datenschutz und IT-Sicherheit des Kunden die Unterlagen freigeben.
 
@@ -66,6 +66,8 @@ Im Repository liegt derzeit eine MIT-`LICENSE`. Das ist mit dem gewünschten Zie
 - `THIRD-PARTY-NOTICES.md`, Frontend-Lizenzdatei und SBOM bleiben unabhängig davon Bestandteil der Lieferung.
 
 Die bestehende `LICENSE` wird deshalb nicht stillschweigend technisch überschrieben. Dies ist ein kaufmännisch-rechtlicher Freigabepunkt.
+
+Die technische Bestandsaufnahme und die unverändert geltenden Handlungsempfehlungen stehen ergänzend im [Commercial Source Code Check](commercial-source-code-check.md).
 
 ## 5. Cyber Resilience Act (CRA)
 

@@ -8,7 +8,7 @@ Diese Dokumentation beschreibt den maßgeblichen Backend-Stand der **HimiFlow Ei
 
 ## 2. Architektur
 
-- Angular-Frontend und ASP.NET-Core-8-API
+- Angular-Frontend und ASP.NET-Core-10-API
 - ASP.NET Core Identity mit serverseitig gesetzter `HimiFlow.Auth`-Cookie
 - CSRF-Schutz für schreibende Aufrufe über `HimiFlow.Antiforgery` und `X-XSRF-TOKEN`
 - Entity Framework Core; aktuell `Database:Provider=SQLite`
@@ -111,11 +111,11 @@ SQLite bleibt der aktive und geprüfte lokale Provider:
 "ConnectionStrings": { "DefaultConnection": "Data Source=einsparungen.db" }
 ```
 
-Der Anwendungscode kann bereits `SqlServer` konfigurieren. Die vorhandenen EF-Migrationen sind jedoch bewusst SQLite-spezifisch. Bei `SqlServer` blockiert HimiFlow daher `--migrate` und `--seed`, bis in der Phase Inbetriebnahme eine separate SQL-Server-Migrationshistorie erzeugt, getestet und abgenommen wurde. Eine bloße Änderung der Verbindungszeichenfolge ist noch keine freigegebene Migration.
+Für `SqlServer` existiert eine eigene Migrationshistorie unter `Migrations/SqlServer`. Der aktive Provider entscheidet, welche Migrationen `--migrate` und `--seed` verwenden. Productive SQL-Verbindungen müssen `Encrypt=True` und `TrustServerCertificate=False` verwenden. Details zu Initialisierung, Update und getrennten Migrations-/Laufzeitkonten stehen im [SQL-Server-Produktionsweg](sql-server-produktionsweg.md). Eine bloße Änderung der Verbindungszeichenfolge ersetzt weiterhin keine Datenübernahme und Kundenabnahme.
 
 ## 9. Backup und Restore
 
-Bei SQLite erstellt der Hintergrunddienst standardmäßig alle 24 Stunden ein Backup. Nach jedem Backup läuft `PRAGMA integrity_check`. Standardaufbewahrung: 30 Tage, mindestens sieben Dateien bleiben erhalten. Der Dienst holt ein fälliges Backup beim nächsten Start nach und beendet die API bei einem einzelnen Backupfehler nicht; der Fehler wird protokolliert.
+Bei SQLite erstellt der Hintergrunddienst standardmäßig alle 24 Stunden ein Backup. Nach jedem Backup läuft `PRAGMA integrity_check`. Standardaufbewahrung: 30 Tage, mindestens sieben Dateien bleiben erhalten. Der Dienst holt ein fälliges Backup beim nächsten Start nach und beendet die API bei einem einzelnen Backupfehler nicht; der Fehler wird protokolliert. `Backup:Directory` darf als absoluter Pfad außerhalb des Anwendungsverzeichnisses konfiguriert werden. `Backup:MaximumAgeHours` bestimmt, ab wann das letzte Backup als überfällig gilt.
 
 Manuell:
 
@@ -127,12 +127,14 @@ dotnet run -- --validate-backup .\backups\einsparungen_....db
 Restore nur bei gestoppter API:
 
 ```powershell
-.\deploy\Restore-SqliteBackup.ps1 -BackupFile "C:\gesicherter-pfad\einsparungen_....db"
+.\deploy\Restore-SqliteBackup.ps1 -BackupFile "C:\gesicherter-pfad\einsparungen_....db" -DatabaseFile "C:\ProgramData\HimiFlow\data\einsparungen.db"
 ```
 
-Das Restore-Skript prüft das Quellbackup, verlangt einen exklusiven Zugriff auf die Zieldatenbank, erstellt zuerst eine Sicherheitskopie und validiert anschließend die wiederhergestellte Datenbank. Die Detailvorgaben stehen im [Backup- und Restore-Konzept](backup-und-restore-konzept.md).
+Das Restore-Skript prüft das Quellbackup, verlangt einen exklusiven Zugriff auf die explizit angegebene Zieldatenbank, erstellt von genau dieser Datei zuerst eine Sicherheitskopie und validiert anschließend die wiederhergestellte Datenbank. Ein Backup auf derselben Festplatte ist kein vollständiges Disaster-Recovery-Konzept. Die Detailvorgaben stehen im [Backup- und Restore-Konzept](backup-und-restore-konzept.md).
 
 ## 10. Health, Fehler und Diagnose
+
+`/api/health/operations` meldet fehlende, deaktivierte oder gemäß `MaximumAgeHours` überfällige SQLite-Backups als `Degraded`. Diese betriebliche Warnung ist bewusst von `/api/health/ready` getrennt und nimmt die Anwendung nicht automatisch aus dem Dienst.
 
 - `GET /api/health/live`: Prozess antwortet
 - `GET /api/health/ready`: Datenbank ist erreichbar
@@ -150,7 +152,7 @@ Production setzt zusätzlich `nosniff`, `DENY`, `no-referrer`, eine eingeschrän
 - Mitarbeiter erhalten globale aggregierte Statistiken, aber keinen Reiter mit fremden Einzelfällen.
 - fachliche Änderungen, Benutzerverwaltung, Anmeldung, Passwortwechsel und Backuperstellung erzeugen Audit-Metadaten.
 - nur `SystemAdmin` kann die administrative Auditansicht aufrufen; alte/neue fachliche Snapshotwerte werden dort nicht ausgegeben.
-- `Audit:RetentionDays=0` bedeutet noch keine automatische Löschung. Die konkrete Aufbewahrungs- und Löschfrist muss der Kunde rechtlich/fachlich festlegen.
+- Die optionale Audit-Bereinigung ist standardmäßig deaktiviert; `Audit:RetentionDays=0` bedeutet keine automatische Löschung. Die konkrete Aufbewahrungs- und Löschfrist muss der Kunde rechtlich/fachlich festlegen.
 
 Details und offene Betreiberentscheidungen stehen im [Datenschutz- und Berechtigungskonzept](datenschutz-und-berechtigungskonzept.md).
 
@@ -170,7 +172,7 @@ Vor echtem Kundenbetrieb bleiben kundenspezifisch:
 2. Kunden-PKI-Zertifikat und DNS/Hostname einbinden.
 3. Firewall-, Proxy- und `AllowedHosts`-Werte festlegen.
 4. SQL-Server-Datenbank, Dienstkonto, Verschlüsselung und Least-Privilege-Zugriff bereitstellen.
-5. SQL-Server-Migrationen erzeugen; Datenübernahme, Performance, Backup und Restore testen.
+5. Vorbereitete SQL-Server-Migrationen auf der Kundeninstanz anwenden; Datenübernahme, Performance, Backup und Restore testen.
 6. Lizenzschlüssel, Anbieterangaben und produktive Konfiguration einspielen.
 7. Datenschutzfreigabe, gegebenenfalls DSFA, Vertrag, Abnahme und Betriebsverantwortung abschließen.
 8. Monitoring, Patchprozess, Recovery-Test und Support-Eskalation in die Kundenprozesse integrieren.

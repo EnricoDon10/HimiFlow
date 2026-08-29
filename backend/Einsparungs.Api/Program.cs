@@ -19,6 +19,16 @@ var requireHttps = builder.Configuration.GetValue(
     "Security:RequireHttps",
     !builder.Environment.IsDevelopment());
 var reverseProxyEnabled = builder.Configuration.GetValue("ReverseProxy:Enabled", false);
+var licenseEnforcementEnabled = builder.Configuration.GetValue<bool?>("License:EnforcementEnabled")
+    ?? !builder.Environment.IsDevelopment();
+
+if (licenseEnforcementEnabled &&
+    !builder.Environment.IsDevelopment() &&
+    string.IsNullOrWhiteSpace(builder.Configuration["License:InstallationId"]))
+{
+    throw new InvalidOperationException(
+        "License:InstallationId muss in Production bei aktiver Lizenzdurchsetzung konfiguriert sein.");
+}
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -67,27 +77,28 @@ builder.Services.AddProblemDetails(options =>
 });
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-builder.Services.AddDbContext<AppDbContext>(options =>
+if (string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
 {
-    if (string.Equals(databaseProvider, "SQLite", StringComparison.OrdinalIgnoreCase))
-    {
-        options.UseSqlite(connectionString);
-        return;
-    }
+    builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+}
+else if (string.Equals(databaseProvider, "SqlServer", StringComparison.OrdinalIgnoreCase))
+{
+    ValidateSqlServerConnectionSecurity(connectionString, builder.Environment);
 
-    if (string.Equals(databaseProvider, "SqlServer", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddDbContext<AppDbContext, SqlServerAppDbContext>(options =>
     {
         options.UseSqlServer(connectionString, sqlServer =>
         {
             sqlServer.EnableRetryOnFailure(5, TimeSpan.FromSeconds(10), null);
             sqlServer.CommandTimeout(30);
         });
-        return;
-    }
-
+    });
+}
+else
+{
     throw new InvalidOperationException(
         $"Database:Provider '{databaseProvider}' wird nicht unterstützt. Zulässig sind SQLite und SqlServer.");
-});
+}
 
 builder.Services
     .AddIdentityCore<AppUser>(options =>
@@ -166,11 +177,16 @@ builder.Services.AddSingleton<TemporaryPasswordGenerator>();
 builder.Services.AddScoped<OfflineLicenseValidator>();
 builder.Services.AddScoped<LicenseService>();
 builder.Services.AddScoped<LicenseReadOnlyMiddleware>();
-builder.Services.AddScoped<SqliteBackupService>();
+builder.Services.AddSingleton<SqliteBackupService>();
+builder.Services.AddSingleton<BackupStatusEvaluator>();
+builder.Services.Configure<AuditRetentionOptions>(builder.Configuration.GetSection("Audit"));
+builder.Services.AddScoped<AuditRetentionService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHostedService<SqliteBackupBackgroundService>();
+builder.Services.AddHostedService<AuditCleanupBackgroundService>();
 builder.Services.AddHealthChecks()
-    .AddCheck<LocalHealthCheck>("database", tags: new[] { "ready" });
+    .AddCheck<LocalHealthCheck>("database", tags: new[] { "ready" })
+    .AddCheck<BackupOperationsHealthCheck>("backup", tags: new[] { "operations" });
 
 builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
@@ -203,7 +219,7 @@ if (reverseProxyEnabled)
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
         options.ForwardLimit = 1;
-        options.KnownNetworks.Clear();
+        options.KnownIPNetworks.Clear();
         options.KnownProxies.Clear();
 
         foreach (var value in knownProxyValues)
@@ -299,12 +315,6 @@ using (var scope = app.Services.CreateScope())
 
     if (migrateCommand || seedCommand)
     {
-        if (string.Equals(databaseProvider, "SqlServer", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                "Die aktuellen Migrationen sind die SQLite-Migrationshistorie. SQL-Server-Migrationen werden erst in der Phase Inbetriebnahme erzeugt und abgenommen.");
-        }
-
         await db.Database.MigrateAsync();
         if (seedCommand)
         {
@@ -410,10 +420,17 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapControllers();
-app.MapHealthChecks("/api/health");
+app.MapHealthChecks("/api/health", new HealthCheckOptions
+{
+    Predicate = check => !check.Tags.Contains("operations")
+});
 app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("ready")
+});
+app.MapHealthChecks("/api/health/operations", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("operations")
 });
 app.MapGet("/api/health/live", () => Results.Ok(new { status = "Healthy" }));
 app.MapGet("/", () => "Einsparungs API laeuft.");
@@ -431,6 +448,28 @@ static string? GetArgumentValue(string[] arguments, string argumentName)
     }
 
     return null;
+}
+
+static void ValidateSqlServerConnectionSecurity(string value, IHostEnvironment environment)
+{
+    if (environment.IsDevelopment())
+    {
+        return;
+    }
+
+    var connection = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(value);
+    var encryptValue = connection.ContainsKey("Encrypt")
+        ? connection["Encrypt"]?.ToString()
+        : null;
+    var encryptionEnabled = string.Equals(encryptValue, "True", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(encryptValue, "Mandatory", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(encryptValue, "Strict", StringComparison.OrdinalIgnoreCase);
+
+    if (!encryptionEnabled || connection.TrustServerCertificate)
+    {
+        throw new InvalidOperationException(
+            "SQL Server erfordert in Production Encrypt=True und TrustServerCertificate=False.");
+    }
 }
 
 public partial class Program;

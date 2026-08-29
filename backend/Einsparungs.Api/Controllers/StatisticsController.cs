@@ -23,46 +23,63 @@ public class StatisticsController : ControllerBase
     [HttpGet("overview")]
     public async Task<ActionResult<StatisticsOverviewResponse>> GetOverview()
     {
-        var entries = await BaseStatisticsQuery().ToListAsync();
+        var aggregate = await BaseStatisticsQuery()
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                EntryCount = group.Count(),
+                TotalSavingAmount = group.Sum(entry => entry.SavingAmount),
+                AverageSavingAmount = group.Average(entry => entry.SavingAmount),
+                HighestSavingAmount = group.Max(entry => entry.SavingAmount),
+                LowestSavingAmount = group.Min(entry => entry.SavingAmount)
+            })
+            .SingleOrDefaultAsync();
 
-        if (entries.Count == 0)
+        if (aggregate is null)
         {
             return Ok(new StatisticsOverviewResponse());
         }
 
         return Ok(new StatisticsOverviewResponse
         {
-            EntryCount = entries.Count,
-            TotalSavingAmount = RoundMoney(entries.Sum(x => x.SavingAmount)),
-            AverageSavingAmount = RoundMoney(entries.Average(x => x.SavingAmount)),
-            HighestSavingAmount = RoundMoney(entries.Max(x => x.SavingAmount)),
-            LowestSavingAmount = RoundMoney(entries.Min(x => x.SavingAmount))
+            EntryCount = aggregate.EntryCount,
+            TotalSavingAmount = RoundMoney(aggregate.TotalSavingAmount),
+            AverageSavingAmount = RoundMoney(aggregate.AverageSavingAmount),
+            HighestSavingAmount = RoundMoney(aggregate.HighestSavingAmount),
+            LowestSavingAmount = RoundMoney(aggregate.LowestSavingAmount)
         });
     }
 
     [HttpGet("monthly")]
     public async Task<ActionResult<List<MonthlySavingsStatisticResponse>>> GetMonthly()
     {
-        var entries = await BaseStatisticsQuery().ToListAsync();
-
-        var result = entries
+        var aggregates = await BaseStatisticsQuery()
             .GroupBy(x => new
             {
                 x.Month.Year,
                 x.Month.Month
             })
-            .Select(x => new MonthlySavingsStatisticResponse
+            .Select(group => new
             {
-                Year = x.Key.Year,
-                Month = x.Key.Month,
-                MonthLabel = $"{x.Key.Month:00}.{x.Key.Year}",
-                EntryCount = x.Count(),
-                TotalSavingAmount = RoundMoney(x.Sum(y => y.SavingAmount)),
-                AverageSavingAmount = RoundMoney(x.Average(y => y.SavingAmount))
+                group.Key.Year,
+                group.Key.Month,
+                EntryCount = group.Count(),
+                TotalSavingAmount = group.Sum(entry => entry.SavingAmount),
+                AverageSavingAmount = group.Average(entry => entry.SavingAmount)
             })
-            .OrderBy(x => x.Year)
-            .ThenBy(x => x.Month)
-            .ToList();
+            .OrderBy(item => item.Year)
+            .ThenBy(item => item.Month)
+            .ToListAsync();
+
+        var result = aggregates.Select(item => new MonthlySavingsStatisticResponse
+        {
+            Year = item.Year,
+            Month = item.Month,
+            MonthLabel = $"{item.Month:00}.{item.Year}",
+            EntryCount = item.EntryCount,
+            TotalSavingAmount = RoundMoney(item.TotalSavingAmount),
+            AverageSavingAmount = RoundMoney(item.AverageSavingAmount)
+        }).ToList();
 
         return Ok(result);
     }
@@ -70,27 +87,32 @@ public class StatisticsController : ControllerBase
     [HttpGet("by-team")]
     public async Task<ActionResult<List<GroupedSavingsStatisticResponse>>> GetByTeam()
     {
-        var entries = await BaseStatisticsQuery()
-            .Include(x => x.Team)
-            .ToListAsync();
-
-        var result = entries
+        var aggregates = await BaseStatisticsQuery()
             .GroupBy(x => new
             {
                 Key = x.TeamId.ToString(),
                 Name = x.Team.DisplayName
             })
-            .Select(x => new GroupedSavingsStatisticResponse
+            .Select(group => new
             {
-                GroupKey = x.Key.Key,
-                GroupName = x.Key.Name,
-                EntryCount = x.Count(),
-                TotalSavingAmount = RoundMoney(x.Sum(y => y.SavingAmount)),
-                AverageSavingAmount = RoundMoney(x.Average(y => y.SavingAmount))
+                GroupKey = group.Key.Key,
+                GroupName = group.Key.Name,
+                EntryCount = group.Count(),
+                TotalSavingAmount = group.Sum(entry => entry.SavingAmount),
+                AverageSavingAmount = group.Average(entry => entry.SavingAmount)
             })
             .OrderByDescending(x => x.TotalSavingAmount)
             .ThenBy(x => x.GroupName)
-            .ToList();
+            .ToListAsync();
+
+        var result = aggregates.Select(item => new GroupedSavingsStatisticResponse
+        {
+            GroupKey = item.GroupKey,
+            GroupName = item.GroupName,
+            EntryCount = item.EntryCount,
+            TotalSavingAmount = RoundMoney(item.TotalSavingAmount),
+            AverageSavingAmount = RoundMoney(item.AverageSavingAmount)
+        }).ToList();
 
         return Ok(result);
     }
@@ -98,27 +120,32 @@ public class StatisticsController : ControllerBase
     [HttpGet("by-saving-reason")]
     public async Task<ActionResult<List<GroupedSavingsStatisticResponse>>> GetBySavingReason()
     {
-        var entries = await BaseStatisticsQuery()
-            .Include(x => x.SavingReason)
-            .ToListAsync();
-
-        var result = entries
+        var aggregates = await BaseStatisticsQuery()
             .GroupBy(x => new
             {
                 Key = x.SavingReasonId.ToString(),
                 Name = x.SavingReason.Name
             })
-            .Select(x => new GroupedSavingsStatisticResponse
+            .Select(group => new
             {
-                GroupKey = x.Key.Key,
-                GroupName = x.Key.Name,
-                EntryCount = x.Count(),
-                TotalSavingAmount = RoundMoney(x.Sum(y => y.SavingAmount)),
-                AverageSavingAmount = RoundMoney(x.Average(y => y.SavingAmount))
+                GroupKey = group.Key.Key,
+                GroupName = group.Key.Name,
+                EntryCount = group.Count(),
+                TotalSavingAmount = group.Sum(entry => entry.SavingAmount),
+                AverageSavingAmount = group.Average(entry => entry.SavingAmount)
             })
             .OrderByDescending(x => x.TotalSavingAmount)
             .ThenBy(x => x.GroupName)
-            .ToList();
+            .ToListAsync();
+
+        var result = aggregates.Select(item => new GroupedSavingsStatisticResponse
+        {
+            GroupKey = item.GroupKey,
+            GroupName = item.GroupName,
+            EntryCount = item.EntryCount,
+            TotalSavingAmount = RoundMoney(item.TotalSavingAmount),
+            AverageSavingAmount = RoundMoney(item.AverageSavingAmount)
+        }).ToList();
 
         return Ok(result);
     }
@@ -126,27 +153,32 @@ public class StatisticsController : ControllerBase
     [HttpGet("by-product-group")]
     public async Task<ActionResult<List<GroupedSavingsStatisticResponse>>> GetByProductGroup()
     {
-        var entries = await BaseStatisticsQuery()
-            .Include(x => x.ProductGroup)
-            .ToListAsync();
-
-        var result = entries
+        var aggregates = await BaseStatisticsQuery()
             .GroupBy(x => new
             {
                 Key = x.ProductGroupId.ToString(),
                 Name = x.ProductGroup.DisplayValue
             })
-            .Select(x => new GroupedSavingsStatisticResponse
+            .Select(group => new
             {
-                GroupKey = x.Key.Key,
-                GroupName = x.Key.Name,
-                EntryCount = x.Count(),
-                TotalSavingAmount = RoundMoney(x.Sum(y => y.SavingAmount)),
-                AverageSavingAmount = RoundMoney(x.Average(y => y.SavingAmount))
+                GroupKey = group.Key.Key,
+                GroupName = group.Key.Name,
+                EntryCount = group.Count(),
+                TotalSavingAmount = group.Sum(entry => entry.SavingAmount),
+                AverageSavingAmount = group.Average(entry => entry.SavingAmount)
             })
             .OrderByDescending(x => x.TotalSavingAmount)
             .ThenBy(x => x.GroupName)
-            .ToList();
+            .ToListAsync();
+
+        var result = aggregates.Select(item => new GroupedSavingsStatisticResponse
+        {
+            GroupKey = item.GroupKey,
+            GroupName = item.GroupName,
+            EntryCount = item.EntryCount,
+            TotalSavingAmount = RoundMoney(item.TotalSavingAmount),
+            AverageSavingAmount = RoundMoney(item.AverageSavingAmount)
+        }).ToList();
 
         return Ok(result);
     }

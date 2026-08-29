@@ -207,13 +207,16 @@ frontend/src/app/app.routes.ts
 | Route | Komponente | Zugriff |
 | --- | --- | --- |
 | `/login` | `LoginComponent` | nur Gaeste |
-| `/dashboard` | `DashboardComponent` | angemeldet |
-| `/savings/new` | `SavingsCreateComponent` | angemeldet |
-| `/savings/my` | `MySavingsComponent` | angemeldet |
-| `/savings/all` | `AllSavingsComponent` | Fuehrungskraft, Admin |
-| `/statistics` | `StatisticsComponent` | angemeldet |
-| `/admin/product-groups` | `ProductGroupsComponent` | Fuehrungskraft, Admin |
-| `/admin/users` | `UserManagementComponent` | Admin |
+| `/change-password` | `ChangePasswordComponent` | angemeldet mit Pflicht zum Passwortwechsel |
+| `/dashboard` | `DashboardComponent` | Mitarbeiter, FachAdmin |
+| `/savings/new` | `SavingsCreateComponent` | Mitarbeiter, FachAdmin |
+| `/savings/my` | `MySavingsComponent` | Mitarbeiter, FachAdmin |
+| `/savings/all` | `AllSavingsComponent` | nur FachAdmin |
+| `/statistics` | `StatisticsComponent` | Mitarbeiter, FachAdmin |
+| `/admin/product-groups` | `ProductGroupsComponent` | nur FachAdmin |
+| `/admin/users` | `UserManagementComponent` | nur SystemAdmin |
+| `/admin/license` | `LicenseComponent` | nur SystemAdmin |
+| `/legal` | `LegalComponent` | öffentlich |
 
 Unbekannte Routen werden auf `/login` umgeleitet.
 
@@ -292,7 +295,7 @@ Pfad:
 Zweck:
 
 - Anmeldung an der Anwendung
-- Speichern von Token und Benutzerinformationen
+- Halten der Benutzerinformationen nur im flüchtigen Angular-Laufzeitzustand; kein Token in Browser-Speichern
 - Weiterleitung in den geschuetzten Bereich
 
 ### Dashboard
@@ -365,14 +368,14 @@ Pfad:
 
 Zugriff:
 
-- Fuehrungskraft
-- Admin
+- ausschließlich `FachAdmin`
 
 Zweck:
 
-- Anzeige aller Einsparungen
+- serverseitig paginierte und filterbare Anzeige aller Einsparungen
 - Bearbeiten und Loeschen berechtigter Datensaetze
-- Exportfunktionen, sofern in der Komponente angeboten
+- CSV-/Excel-Export
+- fachliche Änderungshistorie mit maskierter KVNR; SystemAdmins erhalten keinen Zugriff
 
 ### Statistik
 

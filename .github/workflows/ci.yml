@@ -22,19 +22,34 @@ jobs:
       - name: Repository auschecken
         uses: actions/checkout@v4
 
-      - name: .NET 8 einrichten
+      - name: .NET 10 einrichten
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       - name: Abhängigkeiten wiederherstellen
         run: dotnet restore backend/EinsparungsApp.sln
+
+      - name: NuGet-Abhängigkeiten auf bekannte Schwachstellen prüfen
+        run: dotnet package list --project backend/EinsparungsApp.sln --vulnerable --include-transitive
 
       - name: Release-Build
         run: dotnet build backend/EinsparungsApp.sln --configuration Release --no-restore
 
       - name: Tests
         run: dotnet test backend/EinsparungsApp.sln --configuration Release --no-build
+
+      - name: Lokale .NET-Werkzeuge wiederherstellen
+        run: dotnet tool restore
+
+      - name: Ausstehende SQLite-Modelländerungen ausschließen
+        run: dotnet ef migrations has-pending-model-changes --project backend/Einsparungs.Api --startup-project backend/Einsparungs.Api --context AppDbContext
+
+      - name: Ausstehende SQL-Server-Modelländerungen ausschließen
+        run: dotnet ef migrations has-pending-model-changes --project backend/Einsparungs.Api --startup-project backend/Einsparungs.Api --context SqlServerAppDbContext
+
+      - name: SQL-Server-Migrationsskript erzeugen
+        run: dotnet ef migrations script --idempotent --project backend/Einsparungs.Api --startup-project backend/Einsparungs.Api --context SqlServerAppDbContext --output /tmp/himiflow-sqlserver.sql
 
   frontend:
     name: Frontend Build, Tests und Audit
@@ -68,3 +83,17 @@ jobs:
 
       - name: Abhängigkeiten auf hohe Risiken prüfen
         run: npm audit --audit-level=high
+
+  secrets:
+    name: Geheimnisprüfung
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Typische Geheimnisse im Repository suchen
+        shell: pwsh
+        run: ./scripts/check-secrets.ps1

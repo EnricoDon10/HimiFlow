@@ -7,7 +7,7 @@ namespace Einsparungs.Api.Data;
 
 public class AppDbContext : IdentityUserContext<AppUser, Guid>
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options)
+    public AppDbContext(DbContextOptions options)
         : base(options)
     {
     }
@@ -76,6 +76,32 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
             .HasColumnType("decimal(18,2)");
 
         modelBuilder.Entity<SavingsEntry>()
+            .Property(x => x.Version)
+            .IsConcurrencyToken();
+
+        modelBuilder.Entity<SavingsEntry>()
+            .HasIndex(x => new { x.IsDeleted, x.Month, x.CreatedAt })
+            .HasDatabaseName("IX_SavingsEntries_ActiveMonthCreatedAt")
+            .IsDescending(false, true, true);
+
+        modelBuilder.Entity<SavingsEntry>()
+            .HasIndex(x => new { x.CreatedByUserId, x.IsDeleted, x.Month, x.CreatedAt })
+            .HasDatabaseName("IX_SavingsEntries_UserActiveMonthCreatedAt")
+            .IsDescending(false, false, true, true);
+
+        modelBuilder.Entity<SavingsEntry>()
+            .HasIndex(x => new { x.TeamId, x.IsDeleted, x.Month })
+            .HasDatabaseName("IX_SavingsEntries_TeamActiveMonth");
+
+        modelBuilder.Entity<SavingsEntry>()
+            .HasIndex(x => new { x.SavingReasonId, x.IsDeleted, x.Month })
+            .HasDatabaseName("IX_SavingsEntries_ReasonActiveMonth");
+
+        modelBuilder.Entity<SavingsEntry>()
+            .HasIndex(x => new { x.ProductGroupId, x.IsDeleted, x.Month })
+            .HasDatabaseName("IX_SavingsEntries_ProductGroupActiveMonth");
+
+        modelBuilder.Entity<SavingsEntry>()
             .HasOne(x => x.Team)
             .WithMany(x => x.SavingsEntries)
             .HasForeignKey(x => x.TeamId)
@@ -128,9 +154,17 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
             .HasForeignKey(x => x.ChangedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        modelBuilder.Entity<AuditLog>()
+            .HasIndex(x => x.ChangedAt)
+            .HasDatabaseName("IX_AuditLogs_ChangedAt");
+
         modelBuilder.Entity<LicenseInstallation>(entity =>
         {
             entity.HasKey(x => x.Id);
+            if (Database.IsSqlServer())
+            {
+                entity.Property(x => x.Id).ValueGeneratedNever();
+            }
             entity.Property(x => x.LicenseKey).HasMaxLength(12000).IsRequired();
             entity.HasOne(x => x.InstalledByUser)
                 .WithMany()

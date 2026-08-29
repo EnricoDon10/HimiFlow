@@ -30,6 +30,55 @@
   </section>
 }
 
+<section class="filter-card" aria-labelledby="savings-filter-title">
+  <div class="filter-heading">
+    <div>
+      <h2 id="savings-filter-title">Liste filtern</h2>
+      <p>Filter werden serverseitig auf alle Datensätze angewendet.</p>
+    </div>
+    <button type="button" class="ghost-button" (click)="clearFilters()">Zurücksetzen</button>
+  </div>
+
+  <form class="filter-grid" (ngSubmit)="applyFilters()">
+    <label>
+      Monat
+      <input type="month" name="filterMonth" [(ngModel)]="filterMonth" />
+    </label>
+
+    <label>
+      Team
+      <select name="filterTeamId" [(ngModel)]="filterTeamId">
+        <option [ngValue]="null">Alle Teams</option>
+        @for (team of teams(); track team.id) {
+          <option [ngValue]="team.id">{{ team.displayName }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Einspargrund
+      <select name="filterSavingReasonId" [(ngModel)]="filterSavingReasonId">
+        <option [ngValue]="null">Alle Gründe</option>
+        @for (reason of savingReasons(); track reason.id) {
+          <option [ngValue]="reason.id">{{ reason.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      Produktgruppe
+      <select name="filterProductGroupId" [(ngModel)]="filterProductGroupId">
+        <option [ngValue]="null">Alle Produktgruppen</option>
+        @for (productGroup of productGroups(); track productGroup.id) {
+          <option [ngValue]="productGroup.id">{{ productGroup.displayValue }}</option>
+        }
+      </select>
+    </label>
+
+    <button type="submit" class="primary-button" [disabled]="isLoading()">Filter anwenden</button>
+  </form>
+</section>
+
 @if (editingEntry()) {
   <section class="edit-card">
     <div class="edit-header">
@@ -157,19 +206,48 @@
   </section>
 }
 
+@if (historyEntry()) {
+  <section class="edit-card" aria-labelledby="history-title">
+    <div class="edit-header">
+      <div>
+        <p>Fachliche Nachvollziehbarkeit</p>
+        <h2 id="history-title">Änderungshistorie</h2>
+        <span>KVNR {{ maskKvnrForDisplay(historyEntry()?.kvnr) }} – ausschließlich maskierte und fachlich freigegebene Felder.</span>
+      </div>
+      <button type="button" class="ghost-button" (click)="closeHistory()">Schließen</button>
+    </div>
+
+    @if (isLoadingHistory()) {
+      <div class="state-box">Historie wird geladen...</div>
+    } @else {
+      @for (history of historyItems(); track history.id) {
+        <article>
+          <strong>{{ historyActionLabel(history.action) }}</strong>
+          <span> · {{ history.changedAt | date:'dd.MM.yyyy, HH:mm' }} · {{ history.changedByDisplayName }}</span>
+          <ul>
+            @for (change of history.changes; track change.field) {
+              <li><strong>{{ change.label }}:</strong> {{ change.oldValue ?? '–' }} → {{ change.newValue ?? '–' }}</li>
+            }
+          </ul>
+        </article>
+      }
+    }
+  </section>
+}
+
 <section class="summary-grid">
   <article class="summary-card">
-    <span>Anzahl Datensätze</span>
-    <strong>{{ savingsEntries().length }}</strong>
+    <span>Datensätze gesamt</span>
+    <strong>{{ totalCount() }}</strong>
   </article>
 
   <article class="summary-card">
-    <span>Gesamtersparnis</span>
+    <span>Ersparnis auf dieser Seite</span>
     <strong>{{ formatMoney(getTotalSavingAmount()) }}</strong>
   </article>
 
   <article class="summary-card">
-    <span>Durchschnitt</span>
+    <span>Durchschnitt auf dieser Seite</span>
     <strong>{{ formatMoney(getAverageSavingAmount()) }}</strong>
   </article>
 </section>
@@ -213,6 +291,10 @@
                     Bearbeiten
                   </button>
 
+                  <button type="button" class="edit-button" (click)="showHistory(entry)">
+                    Historie
+                  </button>
+
                   <button
                     type="button"
                     class="delete-button"
@@ -245,6 +327,26 @@
         </tbody>
       </table>
     </div>
+  }
+
+  @if (totalPages() > 0) {
+    <nav class="pagination" aria-label="Seitennavigation">
+      <button type="button" (click)="changePage(page() - 1)" [disabled]="page() <= 1 || isLoading()">
+        Zurück
+      </button>
+      <span>Seite {{ page() }} von {{ totalPages() }}</span>
+      <button type="button" (click)="changePage(page() + 1)" [disabled]="page() >= totalPages() || isLoading()">
+        Weiter
+      </button>
+      <label>
+        Einträge pro Seite
+        <select name="pageSize" [ngModel]="pageSize" (ngModelChange)="changePageSize($event)">
+          <option [ngValue]="25">25</option>
+          <option [ngValue]="50">50</option>
+          <option [ngValue]="100">100</option>
+        </select>
+      </label>
+    </nav>
   }
 </section>
 

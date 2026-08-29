@@ -16,6 +16,8 @@ public sealed class LicenseInstallation
 
     public DateTime InstalledAt { get; set; } = DateTime.UtcNow;
 
+    public DateTime? LastSuccessfulLicenseValidationUtc { get; set; }
+
     public Guid? InstalledByUserId { get; set; }
 
     public AppUser? InstalledByUser { get; set; }

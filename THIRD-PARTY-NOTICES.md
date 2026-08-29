@@ -1,6 +1,6 @@
 # HimiFlow – Hinweise zu Drittkomponenten
 
-Stand: 28.08.2026
+Stand: 29.08.2026
 
 HimiFlow verwendet Open-Source-Komponenten. Dieses Dokument ist eine technische Übersicht und ersetzt keine abschließende lizenzrechtliche Prüfung des auszuliefernden Produktpakets.
 
@@ -8,12 +8,13 @@ HimiFlow verwendet Open-Source-Komponenten. Dieses Dokument ist eine technische 
 
 | Komponente | Version | Lizenz |
 | --- | --- | --- |
-| ASP.NET Core Identity Entity Framework Core | 8.0.30 | MIT |
-| Entity Framework Core SQLite | 8.0.30 | MIT |
-| Entity Framework Core SQL Server | 8.0.30 | MIT |
+| ASP.NET Core Identity Entity Framework Core | 10.0.11 | MIT |
+| Entity Framework Core SQLite | 10.0.11 | MIT |
+| Entity Framework Core SQL Server | 10.0.11 | MIT |
 | BCrypt.Net-Next | 4.2.0 | MIT |
 | ClosedXML | 0.105.1 | MIT |
-| Swashbuckle.AspNetCore | 6.6.2 | MIT |
+| Microsoft.AspNetCore.OpenApi | 10.0.11 | MIT |
+| Swashbuckle.AspNetCore | 10.2.3 | MIT |
 
 Transitive Abhängigkeiten werden durch den .NET-Publish-Prozess aufgelöst. Vor jeder kommerziellen Veröffentlichung muss die tatsächlich ausgelieferte Paketliste erneut erzeugt und gegen die jeweiligen Lizenztexte geprüft werden.
 

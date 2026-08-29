@@ -9,6 +9,7 @@
 }
 
 export interface SavingsEntryUpdateRequest {
+  expectedVersion: number;
   month: string;
   kvnr: string;
   oldKvAmount: number;
@@ -39,4 +40,38 @@ export interface SavingsEntryResponse {
   updatedByUserId: string | null;
   updatedAt: string | null;
   version: number;
+}
+
+export interface SavingsListQuery {
+  page: number;
+  pageSize: number;
+  month?: string;
+  teamId?: number;
+  savingReasonId?: number;
+  productGroupId?: number;
+  createdByUserId?: string;
+}
+
+export interface PagedResponse<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export interface SavingsHistoryEntry {
+  id: number;
+  action: string;
+  changedAt: string;
+  changedByUserId: string;
+  changedByDisplayName: string;
+  changes: SavingsFieldChange[];
+}
+
+export interface SavingsFieldChange {
+  field: string;
+  label: string;
+  oldValue: string | null;
+  newValue: string | null;
 }

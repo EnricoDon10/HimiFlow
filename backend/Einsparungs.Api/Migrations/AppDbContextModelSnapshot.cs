@@ -15,7 +15,7 @@ namespace Einsparungs.Api.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.30");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
 
             modelBuilder.Entity("Einsparungs.Api.Models.AppRole", b =>
                 {
@@ -192,6 +192,9 @@ namespace Einsparungs.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ChangedAt")
+                        .HasDatabaseName("IX_AuditLogs_ChangedAt");
+
                     b.HasIndex("ChangedByUserId");
 
                     b.ToTable("AuditLogs");
@@ -207,6 +210,9 @@ namespace Einsparungs.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("InstalledByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSuccessfulLicenseValidationUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("LicenseKey")
@@ -323,21 +329,31 @@ namespace Einsparungs.Api.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("Version")
+                        .IsConcurrencyToken()
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedByUserId");
-
                     b.HasIndex("DeletedByUserId");
 
-                    b.HasIndex("ProductGroupId");
-
-                    b.HasIndex("SavingReasonId");
-
-                    b.HasIndex("TeamId");
-
                     b.HasIndex("UpdatedByUserId");
+
+                    b.HasIndex("IsDeleted", "Month", "CreatedAt")
+                        .IsDescending(false, true, true)
+                        .HasDatabaseName("IX_SavingsEntries_ActiveMonthCreatedAt");
+
+                    b.HasIndex("ProductGroupId", "IsDeleted", "Month")
+                        .HasDatabaseName("IX_SavingsEntries_ProductGroupActiveMonth");
+
+                    b.HasIndex("SavingReasonId", "IsDeleted", "Month")
+                        .HasDatabaseName("IX_SavingsEntries_ReasonActiveMonth");
+
+                    b.HasIndex("TeamId", "IsDeleted", "Month")
+                        .HasDatabaseName("IX_SavingsEntries_TeamActiveMonth");
+
+                    b.HasIndex("CreatedByUserId", "IsDeleted", "Month", "CreatedAt")
+                        .IsDescending(false, false, true, true)
+                        .HasDatabaseName("IX_SavingsEntries_UserActiveMonthCreatedAt");
 
                     b.ToTable("SavingsEntries", t =>
                         {

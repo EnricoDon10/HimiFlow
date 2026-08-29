@@ -4,16 +4,6 @@ namespace Einsparungs.Api.Security;
 
 public sealed class LicenseReadOnlyMiddleware : IMiddleware
 {
-    private static readonly PathString[] AlwaysAllowedPaths =
-    [
-        new("/api/auth"),
-        new("/api/license"),
-        new("/api/admin/license"),
-        new("/api/user-management"),
-        new("/api/operations"),
-        new("/api/health")
-    ];
-
     private readonly LicenseService licenseService;
 
     public LicenseReadOnlyMiddleware(LicenseService licenseService)
@@ -26,7 +16,7 @@ public sealed class LicenseReadOnlyMiddleware : IMiddleware
         if (!licenseService.IsEnforcementEnabled ||
             context.User.Identity?.IsAuthenticated != true ||
             IsSafeRequest(context) ||
-            IsAlwaysAllowed(context.Request.Path))
+            IsRecoveryWriteAllowed(context.Request))
         {
             await next(context);
             return;
@@ -60,8 +50,25 @@ public sealed class LicenseReadOnlyMiddleware : IMiddleware
         return context.Request.Method is "GET" or "HEAD" or "OPTIONS";
     }
 
-    private static bool IsAlwaysAllowed(PathString path)
+    private static bool IsRecoveryWriteAllowed(HttpRequest request)
     {
-        return AlwaysAllowedPaths.Any(allowed => path.StartsWithSegments(allowed));
+        if (!HttpMethods.IsPost(request.Method))
+        {
+            return false;
+        }
+
+        var path = request.Path.Value ?? string.Empty;
+        if (path is "/api/auth/logout" or "/api/auth/change-password" or
+            "/api/admin/license" or "/api/operations/backups")
+        {
+            return true;
+        }
+
+        var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 4 &&
+               string.Equals(segments[0], "api", StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(segments[1], "user-management", StringComparison.OrdinalIgnoreCase) &&
+               Guid.TryParse(segments[2], out _) &&
+               segments[3] is "reset-password" or "deactivate";
     }
 }

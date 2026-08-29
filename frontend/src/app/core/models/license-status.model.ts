@@ -14,6 +14,8 @@ export interface LicenseStatus {
   graceUntil: string | null;
   daysRemaining: number | null;
   isReadOnly: boolean;
+  maxUsers: number | null;
+  features: string[];
   installationId: string | null;
   installedAt: string | null;
   message: string | null;

@@ -92,6 +92,19 @@ public sealed class OfflineLicenseValidatorTests
         Assert.AreEqual(LicenseStatuses.Invalid, result.Status);
     }
 
+    [TestMethod]
+    public void Validate_WithNonPositiveMaxUsers_ReturnsInvalid()
+    {
+        using var rsa = RSA.Create(2048);
+        var now = DateTime.UtcNow.Date;
+        var validator = CreateValidator(rsa);
+        var key = CreateLicense(rsa, now.AddDays(-1), now.AddDays(30), maxUsers: 0);
+
+        var result = validator.Validate(key, now);
+
+        Assert.AreEqual(LicenseStatuses.Invalid, result.Status);
+    }
+
     private static OfflineLicenseValidator CreateValidator(RSA? rsa = null, string? installationId = null)
     {
         var values = new Dictionary<string, string?>();
@@ -116,7 +129,8 @@ public sealed class OfflineLicenseValidatorTests
         DateTime validFrom,
         DateTime validUntil,
         int gracePeriodDays = 30,
-        string? installationId = "installation-local")
+        string? installationId = "installation-local",
+        int? maxUsers = 25)
     {
         var payload = new
         {
@@ -126,7 +140,7 @@ public sealed class OfflineLicenseValidatorTests
             validFrom,
             validUntil,
             gracePeriodDays,
-            maxUsers = 25,
+            maxUsers,
             features = new[] { "core" },
             installationId
         };

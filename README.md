@@ -9,7 +9,31 @@
 
 > **Phase F:** Die lokale Edition ist technisch abgenommen und als kontrollierter MVP-/Pilotbetrieb bewertet. Der vollständige Reifegrad und die bewussten Grenzen stehen im [Phase-F-Reifegrad- und Abschlussbericht](docs/phase-f-reifegrad-abschlussbericht.md).
 
-> **Reifegrad 4:** Die anschließende Produkthärtung ist im [aktuellen Reifegrad-4-Abschlussbericht](docs/reifegrad-4-abschlussbericht.md) dokumentiert. Maßgebliche Detailunterlagen: [Backend-Betrieb](docs/backend-betriebsdokumentation.md), [Login/Passwort](docs/login-und-passwortkonzept.md), [Backup/Restore](docs/backup-und-restore-konzept.md), [Datenschutz/Berechtigungen](docs/datenschutz-und-berechtigungskonzept.md) und [Recht/Vertrag](docs/rechtliche-und-vertragliche-checkliste.md).
+> **Reifegrad 4:** Der maßgebliche aktuelle Stand ist im [Production-Gap-Abschlussbericht](docs/production-gap-abschlussbericht.md) dokumentiert. Maßgebliche Detailunterlagen: [Backend-Betrieb](docs/backend-betriebsdokumentation.md), [Login/Passwort](docs/login-und-passwortkonzept.md), [Backup/Restore](docs/backup-und-restore-konzept.md), [Datenschutz/Berechtigungen](docs/datenschutz-und-berechtigungskonzept.md) und [Recht/Vertrag](docs/rechtliche-und-vertragliche-checkliste.md).
+
+## Lokaler Start unter Windows
+
+Das Repository verwendet **.NET SDK 10.0.400** gemäß `global.json`. Ist dieses SDK noch nicht systemweit installiert, kann der vorhandene lokale Codex-SDK-Pfad direkt verwendet werden:
+
+```powershell
+cd C:\Users\enric\dev\GitHub\HimiFlow\backend\Einsparungs.Api
+& "$env:USERPROFILE\.codex\tools\dotnet10\dotnet.exe" run --launch-profile http
+```
+
+Für den normalen dauerhaften Betrieb installierst du das .NET-10-SDK 10.0.400 systemweit. Danach funktioniert im selben Ordner wieder:
+
+```powershell
+dotnet run --launch-profile http
+```
+
+Das Frontend wird in einem zweiten PowerShell-Fenster gestartet:
+
+```powershell
+cd C:\Users\enric\dev\GitHub\HimiFlow\frontend
+npm run start -- --port 4200
+```
+
+Anschließend ist die Anwendung unter `http://localhost:4200` erreichbar; die API läuft lokal auf `http://localhost:5281`.
 
 ## Projektbeschreibung
 
@@ -262,7 +286,7 @@ Dadurch wird verhindert, dass reguläre Mitarbeiter Datenbestände exportieren k
 
 Der aktuelle Projektstand ist eine gehärtete Local Edition auf Reifegrad 4. Das Backend wurde mit ASP.NET Core umgesetzt und verwendet bewusst SQLite, damit die Anwendung ohne zusätzliche Datenbankinstallation lokal betrieben und geprüft werden kann.
 
-In der Phase Inbetriebnahme wird die Anwendung in die Kundeninfrastruktur überführt. Der SQL-Server-Provider ist im Code vorbereitet; eine eigene SQL-Server-Migrationshistorie, Kunden-PKI, Firewall-/Proxy-Konfiguration und Abnahme werden bewusst erst in der tatsächlichen Zielumgebung umgesetzt.
+In der Phase Inbetriebnahme wird die Anwendung in die Kundeninfrastruktur überführt. SQL-Server-Provider und getrennte SQL-Server-Migrationshistorie sind im Code vorbereitet; die reale Datenübernahme, Kunden-PKI, Firewall-/Proxy-Konfiguration und Abnahme erfolgen bewusst erst in der tatsächlichen Zielumgebung.
 
 Das geplante Zielbild ist eine interne Webanwendung mit:
 

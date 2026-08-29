@@ -11,4 +11,8 @@ public sealed class LoginResponse
     public List<string> Roles { get; set; } = new();
 
     public bool MustChangePassword { get; set; }
+
+    public int? TeamId { get; set; }
+
+    public string? TeamName { get; set; }
 }

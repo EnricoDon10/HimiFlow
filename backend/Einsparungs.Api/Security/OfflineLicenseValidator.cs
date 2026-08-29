@@ -75,6 +75,11 @@ public sealed class OfflineLicenseValidator
                 return Invalid("Die Lizenzdaten sind unvollständig oder gehören zu einem anderen Produkt.");
             }
 
+            if (wirePayload.MaxUsers.HasValue && wirePayload.MaxUsers.Value <= 0)
+            {
+                return Invalid("Das Benutzerlimit der Lizenz ist ungültig.");
+            }
+
             var configuredInstallationId = configuration["License:InstallationId"]?.Trim();
 
             if (!string.IsNullOrWhiteSpace(configuredInstallationId) &&

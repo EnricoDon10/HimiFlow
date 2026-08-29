@@ -122,7 +122,9 @@ export class AuthService {
       userName: user.userName,
       displayName: user.displayName,
       roles: user.roles,
-      mustChangePassword: user.mustChangePassword
+      mustChangePassword: user.mustChangePassword,
+      teamId: user.teamId,
+      teamName: user.teamName
     });
   }
 }

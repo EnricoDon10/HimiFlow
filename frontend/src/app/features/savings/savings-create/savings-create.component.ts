@@ -7,6 +7,7 @@ import { SavingsEntryResponse } from '../../../core/models/savings-entry.model';
 import { MasterDataService } from '../../../core/services/master-data.service';
 import { SavingsService } from '../../../core/services/savings.service';
 import { LicenseService } from '../../../core/services/license.service';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-savings-create',
@@ -40,6 +41,7 @@ export class SavingsCreateComponent implements OnInit {
   constructor(
     private readonly masterDataService: MasterDataService,
     private readonly savingsService: SavingsService,
+    readonly authService: AuthService,
     readonly licenseService: LicenseService
   ) {}
 
@@ -125,7 +127,9 @@ export class SavingsCreateComponent implements OnInit {
         this.savingReasons.set(result.savingReasons);
         this.productGroups.set(result.productGroups);
 
-        this.teamId = result.teams[0]?.id ?? null;
+        this.teamId = this.canSelectTeam()
+          ? result.teams[0]?.id ?? null
+          : this.authService.currentUser()?.teamId ?? null;
         this.savingReasonId = result.savingReasons[0]?.id ?? null;
         this.productGroupId = result.productGroups[0]?.id ?? null;
 
@@ -198,6 +202,10 @@ export class SavingsCreateComponent implements OnInit {
       style: 'currency',
       currency: 'EUR'
     }).format(value || 0);
+  }
+
+  canSelectTeam(): boolean {
+    return this.authService.hasRole('FachAdmin');
   }
 
   private validateForm(): string | null {

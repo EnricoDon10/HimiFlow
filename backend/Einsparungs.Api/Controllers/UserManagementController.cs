@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Data;
 using System.Text.Json;
 using Einsparungs.Api.Data;
 using Einsparungs.Api.Models;
@@ -18,15 +19,18 @@ public sealed class UserManagementController : ControllerBase
     private readonly AppDbContext db;
     private readonly UserManager<AppUser> userManager;
     private readonly TemporaryPasswordGenerator temporaryPasswordGenerator;
+    private readonly LicenseService licenseService;
 
     public UserManagementController(
         AppDbContext db,
         UserManager<AppUser> userManager,
-        TemporaryPasswordGenerator temporaryPasswordGenerator)
+        TemporaryPasswordGenerator temporaryPasswordGenerator,
+        LicenseService licenseService)
     {
         this.db = db;
         this.userManager = userManager;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
+        this.licenseService = licenseService;
     }
 
     [HttpGet]
@@ -53,7 +57,12 @@ public sealed class UserManagementController : ControllerBase
         var role = await db.Roles.SingleAsync(item => item.Name == roleName);
         var temporaryPassword = temporaryPasswordGenerator.Generate();
 
-        await using var transaction = await db.Database.BeginTransactionAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        var seatLimit = await licenseService.CheckActiveUserSlotAsync();
+        if (!seatLimit.SlotAvailable)
+        {
+            return LicenseLimitConflict(seatLimit);
+        }
 
         var user = new AppUser
         {
@@ -271,11 +280,21 @@ public sealed class UserManagementController : ControllerBase
     [HttpPost("{id:guid}/activate")]
     public async Task<IActionResult> ActivateUser(Guid id)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var user = await userManager.FindByIdAsync(id.ToString());
 
         if (user is null || user.IsDeleted)
         {
             return NotFound();
+        }
+
+        if (!user.IsActive)
+        {
+            var seatLimit = await licenseService.CheckActiveUserSlotAsync();
+            if (!seatLimit.SlotAvailable)
+            {
+                return LicenseLimitConflict(seatLimit);
+            }
         }
 
         user.IsActive = true;
@@ -287,6 +306,7 @@ public sealed class UserManagementController : ControllerBase
 
         AddAdminAudit(user.Id, "Activated", new { user.UserName, user.DisplayName });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return NoContent();
     }
@@ -431,6 +451,22 @@ public sealed class UserManagementController : ControllerBase
             user.Team?.DisplayName,
             user.IsActive,
             user.MustChangePassword);
+    }
+
+    private ConflictObjectResult LicenseLimitConflict(LicenseSeatLimitResult seatLimit)
+    {
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "Lizenzlimit erreicht",
+            Detail = "Die maximale Anzahl aktiver Benutzer ist erreicht. Deaktivieren Sie zunächst einen nicht benötigten Benutzer.",
+            Instance = HttpContext.Request.Path
+        };
+        problem.Extensions["code"] = "LICENSE_MAX_USERS_REACHED";
+        problem.Extensions["maxUsers"] = seatLimit.MaxUsers;
+        problem.Extensions["activeUsers"] = seatLimit.ActiveUsers;
+        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+        return Conflict(problem);
     }
 
     private void AddAdminAudit(Guid entityId, string action, object details)

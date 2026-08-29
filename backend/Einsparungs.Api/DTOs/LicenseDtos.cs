@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace Einsparungs.Api.DTOs;
 
 public sealed record LicenseInstallRequest(
-    [property: Required] string LicenseKey);
+    [param: Required] string LicenseKey);
 
 public sealed record LicenseStatusResponse(
     string Status,
@@ -14,6 +14,8 @@ public sealed record LicenseStatusResponse(
     DateTime? GraceUntil,
     int? DaysRemaining,
     bool IsReadOnly,
+    int? MaxUsers,
+    IReadOnlyList<string> Features,
     string? InstallationId,
     DateTime? InstalledAt,
     string? Message);

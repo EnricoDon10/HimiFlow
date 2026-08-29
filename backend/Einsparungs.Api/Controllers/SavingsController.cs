@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Einsparungs.Api.Data;
+using System.Globalization;
 using Einsparungs.Api.DTOs;
 using Einsparungs.Api.Models;
 using Einsparungs.Api.Security;
@@ -43,14 +44,56 @@ public class SavingsController : ControllerBase
 
     [HttpGet("all")]
     [Authorize(Roles = ApplicationRoles.FachAdmin)]
-    public async Task<ActionResult<List<SavingsEntryResponse>>> GetAllSavings()
+    public async Task<ActionResult<PagedResponse<SavingsEntryResponse>>> GetAllSavings(
+        [FromQuery] SavingsListQuery request)
     {
-        var entries = await SavingsResponseQuery()
+        var query = SavingsResponseQuery();
+
+        if (request.Month.HasValue)
+        {
+            var month = NormalizeMonth(request.Month.Value);
+            var nextMonth = month.AddMonths(1);
+            query = query.Where(entry => entry.Month >= month && entry.Month < nextMonth);
+        }
+
+        if (request.TeamId.HasValue)
+        {
+            query = query.Where(entry => entry.TeamId == request.TeamId.Value);
+        }
+
+        if (request.SavingReasonId.HasValue)
+        {
+            query = query.Where(entry => entry.SavingReasonId == request.SavingReasonId.Value);
+        }
+
+        if (request.ProductGroupId.HasValue)
+        {
+            query = query.Where(entry => entry.ProductGroupId == request.ProductGroupId.Value);
+        }
+
+        if (request.CreatedByUserId.HasValue)
+        {
+            query = query.Where(entry => entry.CreatedByUserId == request.CreatedByUserId.Value);
+        }
+
+        var totalCount = await query.CountAsync();
+        var totalPages = totalCount == 0
+            ? 0
+            : (int)Math.Ceiling(totalCount / (double)request.PageSize);
+        var entries = await query
             .OrderByDescending(x => x.Month)
             .ThenByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
             .ToListAsync();
 
-        return Ok(entries);
+        return Ok(new PagedResponse<SavingsEntryResponse>(
+            entries,
+            request.Page,
+            request.PageSize,
+            totalCount,
+            totalPages));
     }
 
     [HttpGet("{id:guid}")]
@@ -78,17 +121,59 @@ public class SavingsController : ControllerBase
         return Ok(response);
     }
 
+    [HttpGet("{id:guid}/history")]
+    [Authorize(Roles = ApplicationRoles.FachAdmin)]
+    public async Task<ActionResult<IReadOnlyList<SavingsHistoryEntryResponse>>> GetHistory(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var logs = await _db.AuditLogs
+            .AsNoTracking()
+            .Where(log => log.EntityName == "SavingsEntry" && log.EntityId == id.ToString())
+            .OrderByDescending(log => log.ChangedAt)
+            .ThenByDescending(log => log.Id)
+            .Select(log => new
+            {
+                log.Id,
+                log.Action,
+                log.ChangedAt,
+                log.ChangedByUserId,
+                ChangedByDisplayName = log.ChangedByUser.DisplayName,
+                log.OldValuesJson,
+                log.NewValuesJson
+            })
+            .ToListAsync(cancellationToken);
+
+        if (logs.Count == 0)
+        {
+            return NotFound();
+        }
+
+        return Ok(logs.Select(log => new SavingsHistoryEntryResponse(
+            log.Id,
+            log.Action,
+            log.ChangedAt,
+            log.ChangedByUserId,
+            log.ChangedByDisplayName,
+            CreateHistoryChanges(log.OldValuesJson, log.NewValuesJson))).ToArray());
+    }
+
     [HttpPost]
     public async Task<ActionResult<SavingsEntryResponse>> Create([FromBody] SavingsEntryCreateRequest request)
     {
         var currentUserId = GetCurrentUserId();
+        var teamResolution = await ResolveTeamForWriteAsync(currentUserId, request.TeamId);
+        if (!teamResolution.IsAllowed)
+        {
+            return TeamScopeProblem(teamResolution);
+        }
 
         var validationErrors = await ValidateSavingsRequestAsync(
             request.Month,
             request.Kvnr,
             request.OldKvAmount,
             request.NewKvAmount,
-            request.TeamId,
+            teamResolution.TeamId,
             request.SavingReasonId,
             request.ProductGroupId
         );
@@ -109,7 +194,7 @@ public class SavingsController : ControllerBase
             OldKvAmount = oldKvAmount,
             NewKvAmount = newKvAmount,
             SavingAmount = RoundMoney(oldKvAmount - newKvAmount),
-            TeamId = request.TeamId,
+            TeamId = teamResolution.TeamId,
             SavingReasonId = request.SavingReasonId,
             ProductGroupId = request.ProductGroupId,
             TransmissionDate = DateTime.UtcNow,
@@ -154,12 +239,23 @@ public class SavingsController : ControllerBase
             return Forbid();
         }
 
+        var teamResolution = await ResolveTeamForWriteAsync(currentUserId, request.TeamId);
+        if (!teamResolution.IsAllowed)
+        {
+            return TeamScopeProblem(teamResolution);
+        }
+
+        if (entry.Version != request.ExpectedVersion)
+        {
+            return ConcurrencyConflict();
+        }
+
         var validationErrors = await ValidateSavingsRequestAsync(
             request.Month,
             request.Kvnr,
             request.OldKvAmount,
             request.NewKvAmount,
-            request.TeamId,
+            teamResolution.TeamId,
             request.SavingReasonId,
             request.ProductGroupId
         );
@@ -179,12 +275,12 @@ public class SavingsController : ControllerBase
         entry.OldKvAmount = oldKvAmount;
         entry.NewKvAmount = newKvAmount;
         entry.SavingAmount = RoundMoney(oldKvAmount - newKvAmount);
-        entry.TeamId = request.TeamId;
+        entry.TeamId = teamResolution.TeamId;
         entry.SavingReasonId = request.SavingReasonId;
         entry.ProductGroupId = request.ProductGroupId;
         entry.UpdatedByUserId = currentUserId;
         entry.UpdatedAt = DateTime.UtcNow;
-        entry.Version += 1;
+        entry.Version = request.ExpectedVersion + 1;
 
         AddAuditLog(
             entry.Id,
@@ -194,7 +290,14 @@ public class SavingsController : ControllerBase
             newValues: CreateAuditSnapshot(entry)
         );
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ConcurrencyConflict();
+        }
 
         var response = await SavingsResponseQuery()
             .SingleAsync(x => x.Id == entry.Id);
@@ -407,6 +510,86 @@ public class SavingsController : ControllerBase
         };
     }
 
+    private static IReadOnlyList<SavingsFieldChangeResponse> CreateHistoryChanges(
+        string? oldValuesJson,
+        string? newValuesJson)
+    {
+        using var oldDocument = ParseAuditDocument(oldValuesJson);
+        using var newDocument = ParseAuditDocument(newValuesJson);
+        var fields = new[]
+        {
+            new HistoryField("month", "Monat", HistoryValueKind.Month),
+            new HistoryField("kvnr", "KVNR (maskiert)", HistoryValueKind.Kvnr),
+            new HistoryField("oldKvAmount", "Alter KV", HistoryValueKind.Money),
+            new HistoryField("newKvAmount", "Neuer KV", HistoryValueKind.Money),
+            new HistoryField("savingAmount", "Ersparnis", HistoryValueKind.Money),
+            new HistoryField("teamId", "Team-ID", HistoryValueKind.Default),
+            new HistoryField("savingReasonId", "Einspargrund-ID", HistoryValueKind.Default),
+            new HistoryField("productGroupId", "Produktgruppen-ID", HistoryValueKind.Default),
+            new HistoryField("isDeleted", "Gelöscht", HistoryValueKind.Boolean)
+        };
+
+        var changes = new List<SavingsFieldChangeResponse>();
+        foreach (var field in fields)
+        {
+            var oldValue = ReadHistoryValue(oldDocument?.RootElement, field);
+            var newValue = ReadHistoryValue(newDocument?.RootElement, field);
+
+            if (string.Equals(oldValue, newValue, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            changes.Add(new SavingsFieldChangeResponse(
+                field.Name,
+                field.Label,
+                oldValue,
+                newValue));
+        }
+
+        return changes;
+    }
+
+    private static JsonDocument? ParseAuditDocument(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonDocument.Parse(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? ReadHistoryValue(JsonElement? root, HistoryField field)
+    {
+        if (!root.HasValue ||
+            root.Value.ValueKind != JsonValueKind.Object ||
+            !root.Value.TryGetProperty(field.Name, out var value) ||
+            value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        return field.Kind switch
+        {
+            HistoryValueKind.Kvnr => PrivacyMasking.MaskKvnr(value.GetString()),
+            HistoryValueKind.Month when value.TryGetDateTime(out var month) =>
+                month.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            HistoryValueKind.Money when value.TryGetDecimal(out var money) =>
+                money.ToString("F2", CultureInfo.InvariantCulture),
+            HistoryValueKind.Boolean when value.ValueKind is JsonValueKind.True or JsonValueKind.False =>
+                value.GetBoolean() ? "Ja" : "Nein",
+            _ => value.ToString()
+        };
+    }
+
     private void AddAuditLog(Guid entityId, string action, Guid changedByUserId, object? oldValues, object? newValues)
     {
         _db.AuditLogs.Add(new AuditLog
@@ -421,6 +604,82 @@ public class SavingsController : ControllerBase
             ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers.UserAgent.ToString()
         });
+    }
+
+    private async Task<TeamResolution> ResolveTeamForWriteAsync(Guid currentUserId, int requestedTeamId)
+    {
+        if (CanManageAllRecords())
+        {
+            return TeamResolution.Allowed(requestedTeamId);
+        }
+
+        var assignedTeamId = await _db.Users
+            .AsNoTracking()
+            .Where(user => user.Id == currentUserId && user.IsActive && !user.IsDeleted)
+            .Select(user => user.TeamId)
+            .SingleOrDefaultAsync();
+
+        if (!assignedTeamId.HasValue)
+        {
+            return TeamResolution.Denied(
+                "TEAM_ASSIGNMENT_REQUIRED",
+                "Dem angemeldeten Mitarbeiter ist kein Team zugeordnet. Bitte wenden Sie sich an den System-Admin.");
+        }
+
+        if (assignedTeamId.Value != requestedTeamId)
+        {
+            return TeamResolution.Denied(
+                "TEAM_SCOPE_VIOLATION",
+                "Mitarbeiter dürfen Einsparungen ausschließlich für ihr eigenes Team erfassen oder bearbeiten.");
+        }
+
+        return TeamResolution.Allowed(assignedTeamId.Value);
+    }
+
+    private ObjectResult TeamScopeProblem(TeamResolution resolution)
+    {
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status403Forbidden,
+            Title = "Teamzuordnung nicht zulässig",
+            Detail = resolution.Error,
+            Instance = HttpContext.Request.Path
+        };
+        problem.Extensions["code"] = resolution.Code;
+        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+        return StatusCode(StatusCodes.Status403Forbidden, problem);
+    }
+
+    private ConflictObjectResult ConcurrencyConflict()
+    {
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "Änderungskonflikt",
+            Detail = "Der Datensatz wurde zwischenzeitlich von einem anderen Benutzer geändert. Bitte laden Sie die aktuellen Daten neu.",
+            Instance = HttpContext.Request.Path
+        };
+        problem.Extensions["code"] = "CONCURRENCY_CONFLICT";
+        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+        return Conflict(problem);
+    }
+
+    private sealed record TeamResolution(bool IsAllowed, int TeamId, string? Code, string? Error)
+    {
+        public static TeamResolution Allowed(int teamId) => new(true, teamId, null, null);
+
+        public static TeamResolution Denied(string code, string error) => new(false, 0, code, error);
+    }
+
+    private sealed record HistoryField(string Name, string Label, HistoryValueKind Kind);
+
+    private enum HistoryValueKind
+    {
+        Default,
+        Month,
+        Kvnr,
+        Money,
+        Boolean
     }
 
 }

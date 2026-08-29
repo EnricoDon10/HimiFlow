@@ -48,8 +48,8 @@ export class ChangePasswordComponent {
       return;
     }
 
-    if (this.newPassword.length < 12) {
-      this.errorMessage.set('Das neue Passwort muss mindestens 12 Zeichen lang sein.');
+    if (this.newPassword.length < 14) {
+      this.errorMessage.set('Das neue Passwort muss mindestens 14 Zeichen lang sein.');
       return;
     }
 

@@ -17,7 +17,7 @@ HimiFlow erreicht nach der technischen Härtung **Reifegrad 4 von 5**: vorproduk
 | HTTPS | Production erzwingt HTTPS/HSTS; Kunden-PKI und vertrauenswürdiger Proxy vorbereitet |
 | Fehler | einheitliche RFC-7807-Antworten mit Trace-ID, keine internen Details |
 | SQLite | aktive lokale Datenbank, explizite Migration/Initialisierung |
-| SQL Server | Provider technisch registriert; Migrationen absichtlich bis Inbetriebnahme blockiert |
+| SQL Server | Provider und getrennte Migrationen vorbereitet; reale Kundenverbindung und Datenübernahme bleiben Inbetriebnahme |
 | Backup | automatisch alle 24 h, Integritätsprüfung, Retention, Restore mit Sicherheitskopie |
 | Datenschutz | KVNR-Maskierung, kein Browsercache für Exporte, Least Privilege, Audit |
 | Lieferkette | CI, Tests, CycloneDX-SBOM und Drittanbieterhinweise |

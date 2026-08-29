@@ -224,6 +224,13 @@ public sealed class AuthController : ControllerBase
             .Distinct()
             .OrderBy(role => role)
             .ToListAsync();
+        var teamName = user.TeamId.HasValue
+            ? await db.Teams
+                .AsNoTracking()
+                .Where(team => team.Id == user.TeamId.Value)
+                .Select(team => team.DisplayName)
+                .SingleOrDefaultAsync()
+            : null;
 
         return new LoginResponse
         {
@@ -231,7 +238,9 @@ public sealed class AuthController : ControllerBase
             UserName = user.UserName ?? string.Empty,
             DisplayName = user.DisplayName,
             Roles = roles,
-            MustChangePassword = user.MustChangePassword
+            MustChangePassword = user.MustChangePassword,
+            TeamId = user.TeamId,
+            TeamName = teamName
         };
     }
 }

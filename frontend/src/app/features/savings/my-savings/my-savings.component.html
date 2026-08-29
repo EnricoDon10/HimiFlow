@@ -94,11 +94,14 @@
 
         <label>
           Team
-          <select name="editTeamId" [(ngModel)]="editTeamId">
+          <select name="editTeamId" [(ngModel)]="editTeamId" [disabled]="!canSelectTeam()">
             @for (team of teams(); track team.id) {
               <option [ngValue]="team.id">{{ team.displayName }}</option>
             }
           </select>
+          @if (!canSelectTeam()) {
+            <small>Das Team wird aus Ihrem Benutzerkonto übernommen.</small>
+          }
         </label>
 
         <label>

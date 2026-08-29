@@ -50,11 +50,44 @@
 .summary-card,
 .table-card,
 .message,
-.edit-card {
+.edit-card,
+.filter-card {
   background: #ffffff;
   border-radius: 1.25rem;
   box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
   padding: 1.25rem;
+}
+
+.filter-card {
+  margin-bottom: 1.5rem;
+}
+
+.filter-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h2,
+  p {
+    margin: 0;
+  }
+
+  p {
+    color: #6B6B6B;
+  }
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
+  gap: 1rem;
+}
+
+.primary-button {
+  background: #F58220;
+  color: #ffffff;
 }
 
 .summary-card {
@@ -218,6 +251,24 @@ button:disabled {
   overflow-x: auto;
 }
 
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+
+  span {
+    font-weight: 800;
+  }
+
+  label {
+    grid-template-columns: auto auto;
+    align-items: center;
+  }
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -307,8 +358,14 @@ tbody tr:hover {
 
   .summary-grid,
   .form-grid,
-  .search-row {
+  .search-row,
+  .filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .filter-heading,
+  .pagination {
+    display: grid;
   }
 
   .edit-actions {

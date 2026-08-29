@@ -27,7 +27,7 @@ jobs:
             build-mode: none
     steps:
       - name: Repository auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: CodeQL initialisieren
         uses: github/codeql-action/init@v4

@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Repository auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: .NET 10 einrichten
         uses: actions/setup-dotnet@v4
@@ -60,7 +60,7 @@ jobs:
         working-directory: frontend
     steps:
       - name: Repository auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Node.js einrichten
         uses: actions/setup-node@v4
@@ -90,7 +90,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Repository auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

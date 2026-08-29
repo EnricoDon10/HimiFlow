@@ -149,6 +149,10 @@ dist
 *.db-shm
 *.db-wal
 **/backups/
+**/keys/
+**/keyring/
+**/test-results/
+**/playwright-report/
 artifacts/
 sbom/
 

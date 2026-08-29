@@ -68,6 +68,35 @@ public sealed class SavingsConcurrencyTests
         Assert.AreEqual(0, await fixture.Db.AuditLogs.CountAsync());
     }
 
+    [TestMethod]
+    public async Task Delete_WithStaleVersion_ReturnsConflictAndKeepsEntry()
+    {
+        await using var fixture = await SavingsFixture.CreateAsync(version: 6);
+
+        var result = await fixture.Controller.Delete(fixture.EntryId, expectedVersion: 5);
+
+        var conflict = result as ConflictObjectResult;
+        Assert.IsNotNull(conflict);
+        var problem = conflict.Value as ProblemDetails;
+        Assert.IsNotNull(problem);
+        Assert.AreEqual(StatusCodes.Status409Conflict, problem.Status);
+        Assert.AreEqual("CONCURRENCY_CONFLICT", problem.Extensions["code"]);
+        Assert.IsFalse((await fixture.Db.SavingsEntries.SingleAsync()).IsDeleted);
+    }
+
+    [TestMethod]
+    public async Task Delete_WithCurrentVersionSoftDeletesAndIncrementsVersion()
+    {
+        await using var fixture = await SavingsFixture.CreateAsync(version: 5);
+
+        var result = await fixture.Controller.Delete(fixture.EntryId, expectedVersion: 5);
+
+        Assert.IsInstanceOfType<NoContentResult>(result);
+        var stored = await fixture.Db.SavingsEntries.SingleAsync();
+        Assert.IsTrue(stored.IsDeleted);
+        Assert.AreEqual(6, stored.Version);
+    }
+
     private sealed class SavingsFixture : IAsyncDisposable
     {
         private readonly SqliteConnection connection;

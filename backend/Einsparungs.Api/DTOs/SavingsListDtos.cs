@@ -7,7 +7,8 @@ public sealed class SavingsListQuery
     [Range(1, 1_000_000)]
     public int Page { get; init; } = 1;
 
-    [Range(1, 100)]
+    // 0 is the explicit UI choice "Alle". Normal pages remain bounded to 100.
+    [Range(0, 100)]
     public int PageSize { get; init; } = 50;
 
     public DateTime? Month { get; init; }

@@ -83,6 +83,49 @@ public sealed class SqliteBackupServiceTests
         }
     }
 
+    [TestMethod]
+    public async Task BackupCanBeValidatedAndRestoredIntoSeparateDatabaseWithoutTouchingSource()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"HimiFlow-restore-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var sourcePath = Path.Combine(root, "source.db");
+            await using (var connection = new SqliteConnection($"Data Source={sourcePath};Pooling=False"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = "CREATE TABLE Savings (Id INTEGER PRIMARY KEY, Amount DECIMAL NOT NULL); INSERT INTO Savings (Amount) VALUES (12.50), (7.50);";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            var service = CreateService(root, sourcePath);
+            var backup = await service.CreateAsync();
+            var validation = await service.ValidateAsync(backup.FullPath);
+            Assert.IsTrue(validation.IsValid);
+
+            var restoredPath = Path.Combine(root, "restored.db");
+            File.Copy(backup.FullPath, restoredPath);
+            await using var restored = new SqliteConnection($"Data Source={restoredPath};Mode=ReadOnly;Pooling=False");
+            await restored.OpenAsync();
+            await using var sumCommand = restored.CreateCommand();
+            sumCommand.CommandText = "SELECT COUNT(*), COALESCE(SUM(Amount), 0) FROM Savings;";
+            await using var reader = await sumCommand.ExecuteReaderAsync();
+            Assert.IsTrue(await reader.ReadAsync());
+            Assert.AreEqual(2L, reader.GetInt64(0));
+            Assert.AreEqual(20m, Convert.ToDecimal(reader.GetValue(1), System.Globalization.CultureInfo.InvariantCulture));
+            Assert.IsTrue(File.Exists(sourcePath));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
     private static SqliteBackupService CreateService(string root, string databasePath)
     {
         var configuration = new ConfigurationBuilder()

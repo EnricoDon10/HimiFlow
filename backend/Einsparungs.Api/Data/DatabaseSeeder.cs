@@ -19,9 +19,15 @@ public static class DatabaseSeeder
             await db.Database.MigrateAsync();
         }
 
+        // Rollen sind technische Systemdaten und werden immer sichergestellt.
+        // Teams, Gründe und Produktgruppen sind kundenspezifische Demo-Stammdaten
+        // und werden nur über die ausdrücklich aktivierte Development-Konfiguration
+        // eingespielt.
+        await SeedRolesAsync(db);
+
         if (seedReferenceData)
         {
-            await SeedReferenceDataAsync(db);
+            await SeedDemoReferenceDataAsync(db);
         }
 
         await EnsureInitialSystemAdminAsync(db, userManager, configuration);
@@ -30,6 +36,11 @@ public static class DatabaseSeeder
     public static async Task SeedReferenceDataAsync(AppDbContext db)
     {
         await SeedRolesAsync(db);
+        await SeedDemoReferenceDataAsync(db);
+    }
+
+    public static async Task SeedDemoReferenceDataAsync(AppDbContext db)
+    {
         await SeedTeamsAsync(db);
         await SeedSavingReasonsAsync(db);
         await SeedProductGroupsAsync(db);

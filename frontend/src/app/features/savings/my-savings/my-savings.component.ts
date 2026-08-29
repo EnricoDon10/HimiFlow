@@ -3,7 +3,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProductGroup, SavingReason, Team } from '../../../core/models/master-data.model';
-import { SavingsEntryResponse } from '../../../core/models/savings-entry.model';
+import { PagedResponse, SavingsEntryResponse, SavingsListQuery } from '../../../core/models/savings-entry.model';
 import { MasterDataService } from '../../../core/services/master-data.service';
 import { SavingsService } from '../../../core/services/savings.service';
 import { LicenseService } from '../../../core/services/license.service';
@@ -29,6 +29,11 @@ export class MySavingsComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
   readonly successMessage = signal<string | null>(null);
   readonly editingEntry = signal<SavingsEntryResponse | null>(null);
+  readonly page = signal(1);
+  readonly totalCount = signal(0);
+  readonly totalPages = signal(0);
+
+  pageSize = 50;
 
   editMonth = '';
   editKvnr = '';
@@ -56,13 +61,13 @@ export class MySavingsComponent implements OnInit {
     this.errorMessage.set(null);
 
     forkJoin({
-      savingsEntries: this.savingsService.getMySavings(),
+      savingsPage: this.savingsService.getMySavings(this.buildListQuery()),
       teams: this.masterDataService.getTeams(),
       savingReasons: this.masterDataService.getSavingReasons(),
       productGroups: this.masterDataService.getProductGroups()
     }).subscribe({
       next: (result) => {
-        this.savingsEntries.set(result.savingsEntries);
+        this.applyPage(result.savingsPage);
         this.teams.set(result.teams);
         this.savingReasons.set(result.savingReasons);
         this.productGroups.set(result.productGroups);
@@ -79,9 +84,9 @@ export class MySavingsComponent implements OnInit {
     this.isLoading.set(true);
     this.errorMessage.set(null);
 
-    this.savingsService.getMySavings().subscribe({
-      next: (entries) => {
-        this.savingsEntries.set(entries);
+    this.savingsService.getMySavings(this.buildListQuery()).subscribe({
+      next: (page) => {
+        this.applyPage(page);
         this.isLoading.set(false);
       },
       error: () => {
@@ -193,7 +198,7 @@ export class MySavingsComponent implements OnInit {
     this.successMessage.set(null);
     this.deletingEntryId.set(entry.id);
 
-    this.savingsService.delete(entry.id).subscribe({
+    this.savingsService.delete(entry.id, entry.version).subscribe({
       next: () => {
         this.savingsEntries.set(
           this.savingsEntries().filter((item) => item.id !== entry.id)
@@ -206,8 +211,8 @@ export class MySavingsComponent implements OnInit {
         this.successMessage.set('Datensatz wurde erfolgreich gelöscht.');
         this.deletingEntryId.set(null);
       },
-      error: () => {
-        this.errorMessage.set('Datensatz konnte nicht gelöscht werden.');
+      error: (error) => {
+        this.errorMessage.set(this.extractDeleteErrorMessage(error));
         this.deletingEntryId.set(null);
       }
     });
@@ -216,8 +221,11 @@ export class MySavingsComponent implements OnInit {
   searchEditProductGroups(): void {
     this.masterDataService.getProductGroups(this.editProductGroupSearch).subscribe({
       next: (result) => {
+        const selectedProductGroupId = this.editProductGroupId;
         this.productGroups.set(result);
-        this.editProductGroupId = result[0]?.id ?? null;
+        this.editProductGroupId = result.some((group) => group.id === selectedProductGroupId)
+          ? selectedProductGroupId
+          : null;
       },
       error: () => {
         this.errorMessage.set('Produktgruppen konnten nicht geladen werden.');
@@ -299,6 +307,21 @@ export class MySavingsComponent implements OnInit {
     return this.authService.hasRole('FachAdmin');
   }
 
+  changePage(targetPage: number): void {
+    if (targetPage < 1 || targetPage > this.totalPages() || targetPage === this.page()) {
+      return;
+    }
+
+    this.page.set(targetPage);
+    this.loadMySavings();
+  }
+
+  changePageSize(value: number): void {
+    this.pageSize = Number(value);
+    this.page.set(1);
+    this.loadMySavings();
+  }
+
   formatMonth(value: string): string {
     const date = new Date(value);
 
@@ -344,6 +367,20 @@ export class MySavingsComponent implements OnInit {
       /[+-]\d{2}:\d{2}$/.test(value);
 
     return new Date(hasTimeZoneInformation ? value : `${value}Z`);
+  }
+
+  private buildListQuery(): SavingsListQuery {
+    return {
+      page: this.page(),
+      pageSize: this.pageSize
+    };
+  }
+
+  private applyPage(result: PagedResponse<SavingsEntryResponse>): void {
+    this.savingsEntries.set(result.items);
+    this.page.set(result.page);
+    this.totalCount.set(result.totalCount);
+    this.totalPages.set(result.totalPages);
   }
 
   private validateEditForm(): string | null {
@@ -410,6 +447,21 @@ export class MySavingsComponent implements OnInit {
     }
 
     return fallback;
+  }
+
+  private extractDeleteErrorMessage(error: unknown): string {
+    if (typeof error === 'object' && error !== null && 'error' in error) {
+      const apiError = (error as { error?: { code?: string; detail?: string } }).error;
+      if (apiError?.code === 'CONCURRENCY_CONFLICT') {
+        this.loadMySavings();
+        return 'Der Datensatz wurde zwischenzeitlich geändert. Die aktuelle Liste wurde neu geladen.';
+      }
+      if (apiError?.detail) {
+        return apiError.detail;
+      }
+    }
+
+    return 'Datensatz konnte nicht gelöscht werden.';
   }
 
   private maskKvnr(value: string): string {

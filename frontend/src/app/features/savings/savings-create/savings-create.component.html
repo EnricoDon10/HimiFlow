@@ -92,6 +92,7 @@
         <label>
           Einspargrund
           <select name="savingReasonId" [(ngModel)]="savingReasonId">
+            <option [ngValue]="null" disabled>Bitte auswählen</option>
             @for (reason of savingReasons(); track reason.id) {
               <option [ngValue]="reason.id">{{ reason.name }}</option>
             }
@@ -119,6 +120,7 @@
         <label>
           Produktgruppe
           <select name="productGroupId" [(ngModel)]="productGroupId">
+            <option [ngValue]="null" disabled>Bitte auswählen</option>
             @for (productGroup of productGroups(); track productGroup.id) {
               <option [ngValue]="productGroup.id">{{ productGroup.displayValue }}</option>
             }

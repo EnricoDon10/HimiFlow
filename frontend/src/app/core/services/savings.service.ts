@@ -32,15 +32,34 @@ export class SavingsService {
     );
   }
 
-  delete(id: string): Observable<void> {
+  delete(id: string, expectedVersion: number): Observable<void> {
     return this.http.delete<void>(
-      `${API_CONFIG.baseUrl}/api/savings/${id}`
+      `${API_CONFIG.baseUrl}/api/savings/${id}`,
+      { params: new HttpParams().set('expectedVersion', expectedVersion) }
     );
   }
 
-  getMySavings(): Observable<SavingsEntryResponse[]> {
-    return this.http.get<SavingsEntryResponse[]>(
-      `${API_CONFIG.baseUrl}/api/savings/my`
+  getMySavings(query: SavingsListQuery): Observable<PagedResponse<SavingsEntryResponse>> {
+    let params = new HttpParams()
+      .set('page', query.page)
+      .set('pageSize', query.pageSize);
+
+    if (query.month) {
+      params = params.set('month', query.month);
+    }
+    if (query.teamId) {
+      params = params.set('teamId', query.teamId);
+    }
+    if (query.savingReasonId) {
+      params = params.set('savingReasonId', query.savingReasonId);
+    }
+    if (query.productGroupId) {
+      params = params.set('productGroupId', query.productGroupId);
+    }
+
+    return this.http.get<PagedResponse<SavingsEntryResponse>>(
+      `${API_CONFIG.baseUrl}/api/savings/my`,
+      { params }
     );
   }
 

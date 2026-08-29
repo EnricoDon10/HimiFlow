@@ -20,7 +20,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [csharp, javascript-typescript]
+        include:
+          - language: csharp
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v4
@@ -29,9 +33,10 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
-          build-mode: autobuild
+          build-mode: ${{ matrix.build-mode }}
 
-      - name: CodeQL-Build
+      - name: CodeQL-Build (nur kompilierte Sprachen)
+        if: matrix.build-mode == 'autobuild'
         uses: github/codeql-action/autobuild@v4
 
       - name: CodeQL-Analyse

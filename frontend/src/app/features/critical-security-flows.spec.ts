@@ -7,6 +7,7 @@ import { ChangePasswordComponent } from './change-password/change-password.compo
 import { LicenseService } from '../core/services/license.service';
 import { UserManagementComponent } from './admin/user-management/user-management.component';
 import { MySavingsComponent } from './savings/my-savings/my-savings.component';
+import { MasterDataComponent } from './admin/master-data/master-data.component';
 
 describe('critical frontend security flows', () => {
   it('login validates input and routes first-login users to password change', () => {
@@ -150,5 +151,25 @@ describe('critical frontend security flows', () => {
     component.saveEdit();
     expect(component.errorMessage()).toBe('Bitte neu laden.');
     expect(component.editingEntry()).toBe(entry);
+  });
+
+  it('loads and creates FachAdmin master data while preserving active state', () => {
+    const newTeam = { id: 2, code: '3410', name: 'Bochum 1', displayName: 'Bochum 1 (3410)', isActive: true, activeUserCount: 0 };
+    const masterData = {
+      getManagedTeams: vi.fn(() => of([])),
+      getManagedSavingReasons: vi.fn(() => of([])),
+      getManagedProductGroups: vi.fn(() => of([])),
+      createTeam: vi.fn(() => of(newTeam))
+    };
+    const license = { isReadOnly: vi.fn(() => false) };
+    const component = new MasterDataComponent(masterData as never, license as never);
+
+    component.ngOnInit();
+    component.organizationUnit = '3410 - Bochum 1';
+    component.createTeam();
+
+    expect(masterData.createTeam).toHaveBeenCalledWith({ organizationUnit: '3410 - Bochum 1' });
+    expect(component.teams()[0].displayName).toBe('Bochum 1 (3410)');
+    expect(component.successMessage()).toContain('Team');
   });
 });

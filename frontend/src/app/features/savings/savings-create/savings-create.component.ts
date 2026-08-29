@@ -130,8 +130,10 @@ export class SavingsCreateComponent implements OnInit {
         this.teamId = this.canSelectTeam()
           ? result.teams[0]?.id ?? null
           : this.authService.currentUser()?.teamId ?? null;
-        this.savingReasonId = result.savingReasons[0]?.id ?? null;
-        this.productGroupId = result.productGroups[0]?.id ?? null;
+        // Fachliche Klassifikationen werden bewusst nicht vorausgewählt.
+        // So muss der Erfasser beide Werte aktiv bestätigen.
+        this.savingReasonId = null;
+        this.productGroupId = null;
 
         this.isLoadingMasterData.set(false);
       },
@@ -145,8 +147,11 @@ export class SavingsCreateComponent implements OnInit {
   searchProductGroups(): void {
     this.masterDataService.getProductGroups(this.productGroupSearch).subscribe({
       next: (result) => {
+        const selectedProductGroupId = this.productGroupId;
         this.productGroups.set(result);
-        this.productGroupId = result[0]?.id ?? null;
+        this.productGroupId = result.some((group) => group.id === selectedProductGroupId)
+          ? selectedProductGroupId
+          : null;
       },
       error: () => {
         this.errorMessage.set('Produktgruppen konnten nicht geladen werden.');

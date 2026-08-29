@@ -162,7 +162,7 @@ Die Route `/legal` ist ohne Anmeldung erreichbar und lädt die Angaben aus `Lega
 
 `deploy/Generate-Sbom.ps1` erzeugt CycloneDX-SBOMs für Backend und Frontend. Lizenzhinweise stehen in `THIRD-PARTY-NOTICES.md`; das Frontend erzeugt zusätzlich `3rdpartylicenses.txt`.
 
-Die derzeitige Repository-Datei `LICENSE` verwendet MIT. Für eine geplante geschlossene kommerzielle Lizenz ist dies vor Kundenüberlassung mit Rechtsberatung und einer eindeutigen Rechtekette zu entscheiden; die technische Dokumentation ersetzt diese Entscheidung nicht.
+Die aktuelle Repository-Datei `LICENSE` ist proprietär für die ME Digitale GbR. Vor Kundenüberlassung sind die Rechtekette, frühere Lizenzstände und der Endkundenvertrag trotzdem juristisch zu prüfen; die technische Dokumentation ersetzt diese Entscheidung nicht.
 
 ## 13. Phase Inbetriebnahme
 

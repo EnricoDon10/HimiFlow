@@ -1,12 +1,15 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using Einsparungs.Api.Controllers;
 using Einsparungs.Api.Data;
 using Einsparungs.Api.DTOs;
 using Einsparungs.Api.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Einsparungs.Api.Security;
 
 namespace Einsparungs.Api.Tests;
 
@@ -52,6 +55,45 @@ public sealed class SavingsPaginationTests
         Assert.AreEqual(1, page.TotalCount);
         Assert.AreEqual(1, page.Items.Count);
         Assert.AreEqual("A100000001", page.Items[0].Kvnr);
+    }
+
+    [TestMethod]
+    public async Task GetMySavings_ReturnsRequestedPageAndTotals()
+    {
+        await using var fixture = await PaginationFixture.CreateAsync();
+
+        var result = await fixture.Controller.GetMySavings(new SavingsListQuery
+        {
+            Page = 2,
+            PageSize = 2
+        });
+
+        var page = ((OkObjectResult)result.Result!).Value as PagedResponse<SavingsEntryResponse>;
+        Assert.IsNotNull(page);
+        Assert.AreEqual(2, page.Page);
+        Assert.AreEqual(2, page.PageSize);
+        Assert.AreEqual(4, page.TotalCount);
+        Assert.AreEqual(2, page.TotalPages);
+        Assert.AreEqual(2, page.Items.Count);
+    }
+
+    [TestMethod]
+    public async Task GetAllSavings_WithPageSizeZero_ReturnsAllItemsOnOnePage()
+    {
+        await using var fixture = await PaginationFixture.CreateAsync();
+
+        var result = await fixture.Controller.GetAllSavings(new SavingsListQuery
+        {
+            Page = 1,
+            PageSize = 0
+        });
+
+        var page = ((OkObjectResult)result.Result!).Value as PagedResponse<SavingsEntryResponse>;
+        Assert.IsNotNull(page);
+        Assert.AreEqual(0, page.PageSize);
+        Assert.AreEqual(4, page.TotalCount);
+        Assert.AreEqual(1, page.TotalPages);
+        Assert.AreEqual(4, page.Items.Count);
     }
 
     [TestMethod]
@@ -132,10 +174,24 @@ public sealed class SavingsPaginationTests
                 Entry("A100000005", new DateTime(2026, 6, 1), teamOne, reasonOne, productGroup, user, createdAt.AddMinutes(-4)));
             await db.SaveChangesAsync();
 
+            var identity = new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Role, ApplicationRoles.Mitarbeiter)
+                ],
+                "TestCookie");
+            var controller = new SavingsController(db)
+            {
+                ControllerContext = new ControllerContext
+                {
+                    HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) }
+                }
+            };
+
             return new PaginationFixture(
                 connection,
                 db,
-                new SavingsController(db),
+                controller,
                 teamOne.Id,
                 reasonOne.Id);
         }

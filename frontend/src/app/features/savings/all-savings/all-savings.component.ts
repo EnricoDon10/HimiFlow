@@ -149,8 +149,8 @@ export class AllSavingsComponent implements OnInit {
     this.isExporting.set(true);
 
     const exportRequest: Observable<Blob> = fileType === 'csv'
-      ? this.exportsService.downloadSavingsCsv()
-      : this.exportsService.downloadSavingsExcel();
+      ? this.exportsService.downloadSavingsCsv(this.buildExportQuery())
+      : this.exportsService.downloadSavingsExcel(this.buildExportQuery());
 
     exportRequest.subscribe({
       next: (blob: Blob) => {
@@ -165,8 +165,8 @@ export class AllSavingsComponent implements OnInit {
 
         this.isExporting.set(false);
       },
-      error: () => {
-        this.errorMessage.set('Export konnte nicht erstellt werden. Bitte Berechtigung und Backend prüfen.');
+      error: async (error) => {
+        this.errorMessage.set(await this.extractExportErrorMessage(error));
         this.isExporting.set(false);
       }
     });
@@ -279,7 +279,7 @@ export class AllSavingsComponent implements OnInit {
     this.successMessage.set(null);
     this.deletingEntryId.set(entry.id);
 
-    this.savingsService.delete(entry.id).subscribe({
+    this.savingsService.delete(entry.id, entry.version).subscribe({
       next: () => {
         if (this.editingEntry()?.id === entry.id) {
           this.editingEntry.set(null);
@@ -289,8 +289,8 @@ export class AllSavingsComponent implements OnInit {
         this.deletingEntryId.set(null);
         this.loadAllSavings();
       },
-      error: () => {
-        this.errorMessage.set('Datensatz konnte nicht gelöscht werden.');
+      error: (error) => {
+        this.errorMessage.set(this.extractDeleteErrorMessage(error));
         this.deletingEntryId.set(null);
       }
     });
@@ -299,8 +299,11 @@ export class AllSavingsComponent implements OnInit {
   searchEditProductGroups(): void {
     this.masterDataService.getProductGroups(this.editProductGroupSearch).subscribe({
       next: (result) => {
+        const selectedProductGroupId = this.editProductGroupId;
         this.productGroups.set(result);
-        this.editProductGroupId = result[0]?.id ?? null;
+        this.editProductGroupId = result.some((group) => group.id === selectedProductGroupId)
+          ? selectedProductGroupId
+          : null;
       },
       error: () => {
         this.errorMessage.set('Produktgruppen konnten nicht geladen werden.');
@@ -501,6 +504,25 @@ export class AllSavingsComponent implements OnInit {
     return fallback;
   }
 
+  private extractDeleteErrorMessage(error: unknown): string {
+    if (typeof error === 'object' && error !== null && 'error' in error) {
+      const apiError = (error as {
+        error?: { code?: string; detail?: string };
+      }).error;
+
+      if (apiError?.code === 'CONCURRENCY_CONFLICT') {
+        this.loadAllSavings();
+        return 'Der Datensatz wurde zwischenzeitlich geändert. Die aktuelle Liste wurde neu geladen.';
+      }
+
+      if (apiError?.detail) {
+        return apiError.detail;
+      }
+    }
+
+    return 'Datensatz konnte nicht gelöscht werden.';
+  }
+
   showHistory(entry: SavingsEntryResponse): void {
     this.historyEntry.set(entry);
     this.historyItems.set([]);
@@ -545,6 +567,40 @@ export class AllSavingsComponent implements OnInit {
       savingReasonId: this.filterSavingReasonId ?? undefined,
       productGroupId: this.filterProductGroupId ?? undefined
     };
+  }
+
+  private buildExportQuery(): Partial<SavingsListQuery> {
+    const query = this.buildListQuery();
+    return {
+      month: query.month,
+      teamId: query.teamId,
+      savingReasonId: query.savingReasonId,
+      productGroupId: query.productGroupId
+    };
+  }
+
+  private async extractExportErrorMessage(error: unknown): Promise<string> {
+    if (typeof error === 'object' && error !== null && 'error' in error) {
+      const response = error as { error?: Blob | { code?: string; detail?: string } };
+      const body = response.error;
+      if (body instanceof Blob) {
+        try {
+          const parsed = JSON.parse(await body.text()) as { code?: string; detail?: string };
+          if (parsed.code === 'EXPORT_LIMIT_EXCEEDED') {
+            return parsed.detail ?? 'Der Export überschreitet das konfigurierte Größenlimit.';
+          }
+          if (parsed.detail) return parsed.detail;
+        } catch {
+          return 'Export konnte nicht erstellt werden. Prüfen Sie Filter und Exportlimit.';
+        }
+        return 'Export konnte nicht erstellt werden. Prüfen Sie Filter und Exportlimit.';
+      }
+      if (body?.code === 'EXPORT_LIMIT_EXCEEDED') {
+        return body.detail ?? 'Der Export überschreitet das konfigurierte Größenlimit.';
+      }
+      if (body?.detail) return body.detail;
+    }
+    return 'Export konnte nicht erstellt werden. Bitte Berechtigung und Backend prüfen.';
   }
 
   private applyPage(result: PagedResponse<SavingsEntryResponse>): void {

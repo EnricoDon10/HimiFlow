@@ -64,4 +64,32 @@ public sealed class AuthorizationRoleMatrixTests
 
         Assert.AreEqual(ApplicationRoles.SystemAdmin, roles);
     }
+
+    [TestMethod]
+    public void MasterDataWrites_AreFachAdminOnly()
+    {
+        var writeMethods = new[]
+        {
+            nameof(MasterDataController.CreateTeam),
+            nameof(MasterDataController.UpdateTeam),
+            nameof(MasterDataController.DeactivateTeam),
+            nameof(MasterDataController.CreateSavingReason),
+            nameof(MasterDataController.UpdateSavingReason),
+            nameof(MasterDataController.DeactivateSavingReason),
+            nameof(MasterDataController.CreateProductGroup),
+            nameof(MasterDataController.UpdateProductGroup),
+            nameof(MasterDataController.DeactivateProductGroup)
+        };
+
+        foreach (var methodName in writeMethods)
+        {
+            var roles = typeof(MasterDataController)
+                .GetMethod(methodName)!
+                .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
+                .Cast<AuthorizeAttribute>()
+                .Single()
+                .Roles;
+            Assert.AreEqual(ApplicationRoles.FachAdmin, roles, methodName);
+        }
+    }
 }

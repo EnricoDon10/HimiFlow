@@ -39,6 +39,11 @@ builder.WebHost.ConfigureKestrel(options =>
     options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(15);
 });
 
+DataProtectionConfiguration.Configure(
+    builder.Services,
+    builder.Configuration,
+    builder.Environment);
+
 builder.Services.AddControllersWithViews(options =>
 {
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
@@ -286,6 +291,9 @@ var applyMigrationsOnStartup = builder.Configuration.GetValue(
 var seedOnStartup = builder.Configuration.GetValue(
     "Database:SeedOnStartup",
     builder.Environment.IsDevelopment());
+var seedDemoReferenceData = builder.Configuration.GetValue(
+    "Database:SeedDemoReferenceData",
+    builder.Environment.IsDevelopment());
 
 using (var scope = app.Services.CreateScope())
 {
@@ -323,7 +331,7 @@ using (var scope = app.Services.CreateScope())
                 userManager,
                 app.Configuration,
                 applyMigrations: false,
-                seedReferenceData: true);
+                seedReferenceData: seedDemoReferenceData);
         }
 
         return;
@@ -332,9 +340,9 @@ using (var scope = app.Services.CreateScope())
     await DatabaseSeeder.SeedAsync(
         db,
         userManager,
-        app.Configuration,
-        applyMigrations: applyMigrationsOnStartup,
-        seedReferenceData: seedOnStartup);
+    app.Configuration,
+    applyMigrations: applyMigrationsOnStartup,
+    seedReferenceData: seedOnStartup && seedDemoReferenceData);
 }
 
 if (reverseProxyEnabled)

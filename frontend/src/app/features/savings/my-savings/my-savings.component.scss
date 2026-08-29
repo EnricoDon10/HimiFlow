@@ -329,6 +329,24 @@ tbody tr:hover {
   }
 }
 
+.pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+
+  span {
+    font-weight: 800;
+  }
+
+  label {
+    grid-template-columns: auto auto;
+    align-items: center;
+  }
+}
+
 @media (max-width: 850px) {
   .page-header,
   .edit-header {

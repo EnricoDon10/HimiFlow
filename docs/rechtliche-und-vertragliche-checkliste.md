@@ -56,16 +56,16 @@ Der Vertrag sollte mindestens eindeutig regeln:
 
 Die Anwendung kann den Jahreslizenzstatus technisch abbilden; sie ersetzt kein vertragliches Lizenzdokument.
 
-## 4. Bestehende MIT-Lizenz – Entscheidung erforderlich
+## 4. Aktuelle proprietäre Lizenz – Rechtekette prüfen
 
-Im Repository liegt derzeit eine MIT-`LICENSE`. Das ist mit dem gewünschten Ziel „Repository privat, proprietäre kommerzielle Edition“ nicht automatisch deckungsgleich:
+Die aktuelle `LICENSE` ist proprietär für die **ME Digitale GbR** und die Assembly-Metadaten deklarieren keine MIT-Lizenz mehr. Für die Verkaufsfreigabe bleibt trotzdem die Rechtekette zu prüfen:
 
-- Bereits wirksam unter MIT erhaltene Kopien behalten grundsätzlich die eingeräumten Rechte.
-- Künftige Versionen können nur dann sicher anders lizenziert werden, wenn die notwendige Rechteinhaberschaft an sämtlichen Beiträgen geklärt ist.
+- Bereits wirksam unter früheren Lizenzen erhaltene Kopien behalten grundsätzlich die eingeräumten Rechte.
+- Künftige Versionen können nur dann sicher proprietär lizenziert werden, wenn die notwendige Rechteinhaberschaft an sämtlichen Beiträgen geklärt ist.
 - Vor dem ersten Kundenvertrag sind Copyright-Inhaber, proprietärer Lizenztext und Bedingungen juristisch festzulegen.
 - `THIRD-PARTY-NOTICES.md`, Frontend-Lizenzdatei und SBOM bleiben unabhängig davon Bestandteil der Lieferung.
 
-Die bestehende `LICENSE` wird deshalb nicht stillschweigend technisch überschrieben. Dies ist ein kaufmännisch-rechtlicher Freigabepunkt.
+Die technische Lizenzkonsistenz ist damit hergestellt; die formale Freigabe und Prüfung älterer Veröffentlichungen bleiben ein kaufmännisch-rechtlicher Punkt.
 
 Die technische Bestandsaufnahme und die unverändert geltenden Handlungsempfehlungen stehen ergänzend im [Commercial Source Code Check](commercial-source-code-check.md).
 
@@ -92,7 +92,7 @@ HimiFlow liefert dafür bereits CI, Tests, SBOM, Security Defaults und Betriebsd
 | --- | --- |
 | Technischer Reifegrad 4, SQLite-Lokalbetrieb | umgesetzt und geprüft |
 | Anbieter-/Unternehmensdaten | vom Inhaber zu liefern |
-| Proprietäre Lizenzstrategie / MIT-Bestand | Rechtsberatung erforderlich |
+| Proprietäre Lizenzstrategie / historische Lizenzstände | Rechtsberatung erforderlich |
 | Datenschutzrollen, DSFA-/AVV-Entscheidung | mit Kunde erforderlich |
 | Preis, SLA, Pflege und Supportzeitraum | kaufmännisch festzulegen |
 | CRA-Klassifizierung/Konformitätsplan | vor Marktbereitstellung erforderlich |

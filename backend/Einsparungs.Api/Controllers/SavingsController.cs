@@ -29,17 +29,38 @@ public class SavingsController : ControllerBase
     }
 
     [HttpGet("my")]
-    public async Task<ActionResult<List<SavingsEntryResponse>>> GetMySavings()
+    public async Task<ActionResult<PagedResponse<SavingsEntryResponse>>> GetMySavings(
+        [FromQuery] SavingsListQuery request)
     {
         var currentUserId = GetCurrentUserId();
 
-        var entries = await SavingsResponseQuery()
-            .Where(x => x.CreatedByUserId == currentUserId)
+        var query = SavingsResponseQuery()
+            .Where(x => x.CreatedByUserId == currentUserId);
+        query = ApplyFilters(query, request);
+
+        var totalCount = await query.CountAsync();
+        var effectivePageSize = request.PageSize == 0
+            ? Math.Max(totalCount, 1)
+            : request.PageSize;
+        var totalPages = totalCount == 0
+            ? 0
+            : request.PageSize == 0
+                ? 1
+                : (int)Math.Ceiling(totalCount / (double)effectivePageSize);
+        var entries = await query
             .OrderByDescending(x => x.Month)
             .ThenByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Skip((request.Page - 1) * effectivePageSize)
+            .Take(effectivePageSize)
             .ToListAsync();
 
-        return Ok(entries);
+        return Ok(new PagedResponse<SavingsEntryResponse>(
+            entries,
+            request.Page,
+            request.PageSize,
+            totalCount,
+            totalPages));
     }
 
     [HttpGet("all")]
@@ -49,43 +70,23 @@ public class SavingsController : ControllerBase
     {
         var query = SavingsResponseQuery();
 
-        if (request.Month.HasValue)
-        {
-            var month = NormalizeMonth(request.Month.Value);
-            var nextMonth = month.AddMonths(1);
-            query = query.Where(entry => entry.Month >= month && entry.Month < nextMonth);
-        }
-
-        if (request.TeamId.HasValue)
-        {
-            query = query.Where(entry => entry.TeamId == request.TeamId.Value);
-        }
-
-        if (request.SavingReasonId.HasValue)
-        {
-            query = query.Where(entry => entry.SavingReasonId == request.SavingReasonId.Value);
-        }
-
-        if (request.ProductGroupId.HasValue)
-        {
-            query = query.Where(entry => entry.ProductGroupId == request.ProductGroupId.Value);
-        }
-
-        if (request.CreatedByUserId.HasValue)
-        {
-            query = query.Where(entry => entry.CreatedByUserId == request.CreatedByUserId.Value);
-        }
+        query = ApplyFilters(query, request);
 
         var totalCount = await query.CountAsync();
+        var effectivePageSize = request.PageSize == 0
+            ? Math.Max(totalCount, 1)
+            : request.PageSize;
         var totalPages = totalCount == 0
             ? 0
-            : (int)Math.Ceiling(totalCount / (double)request.PageSize);
+            : request.PageSize == 0
+                ? 1
+                : (int)Math.Ceiling(totalCount / (double)effectivePageSize);
         var entries = await query
             .OrderByDescending(x => x.Month)
             .ThenByDescending(x => x.CreatedAt)
             .ThenByDescending(x => x.Id)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((request.Page - 1) * effectivePageSize)
+            .Take(effectivePageSize)
             .ToListAsync();
 
         return Ok(new PagedResponse<SavingsEntryResponse>(
@@ -175,7 +176,10 @@ public class SavingsController : ControllerBase
             request.NewKvAmount,
             teamResolution.TeamId,
             request.SavingReasonId,
-            request.ProductGroupId
+            request.ProductGroupId,
+            allowInactiveTeamId: null,
+            allowInactiveSavingReasonId: null,
+            allowInactiveProductGroupId: null
         );
 
         if (validationErrors.Count > 0)
@@ -210,7 +214,7 @@ public class SavingsController : ControllerBase
             "Created",
             currentUserId,
             oldValues: null,
-            newValues: CreateAuditSnapshot(entry)
+            newValues: await CreateAuditSnapshotAsync(entry)
         );
 
         await _db.SaveChangesAsync();
@@ -257,7 +261,10 @@ public class SavingsController : ControllerBase
             request.NewKvAmount,
             teamResolution.TeamId,
             request.SavingReasonId,
-            request.ProductGroupId
+            request.ProductGroupId,
+            allowInactiveTeamId: entry.TeamId,
+            allowInactiveSavingReasonId: entry.SavingReasonId,
+            allowInactiveProductGroupId: entry.ProductGroupId
         );
 
         if (validationErrors.Count > 0)
@@ -265,7 +272,7 @@ public class SavingsController : ControllerBase
             return BadRequest(new { errors = validationErrors });
         }
 
-        var oldSnapshot = CreateAuditSnapshot(entry);
+        var oldSnapshot = await CreateAuditSnapshotAsync(entry);
 
         var oldKvAmount = RoundMoney(request.OldKvAmount);
         var newKvAmount = RoundMoney(request.NewKvAmount);
@@ -287,7 +294,7 @@ public class SavingsController : ControllerBase
             "Updated",
             currentUserId,
             oldValues: oldSnapshot,
-            newValues: CreateAuditSnapshot(entry)
+            newValues: await CreateAuditSnapshotAsync(entry)
         );
 
         try
@@ -306,7 +313,7 @@ public class SavingsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id, [FromQuery] int? expectedVersion)
     {
         var currentUserId = GetCurrentUserId();
 
@@ -323,7 +330,17 @@ public class SavingsController : ControllerBase
             return Forbid();
         }
 
-        var oldSnapshot = CreateAuditSnapshot(entry);
+        if (!expectedVersion.HasValue)
+        {
+            return ExpectedVersionRequired();
+        }
+
+        if (entry.Version != expectedVersion.Value)
+        {
+            return ConcurrencyConflict();
+        }
+
+        var oldSnapshot = await CreateAuditSnapshotAsync(entry);
 
         entry.IsDeleted = true;
         entry.DeletedByUserId = currentUserId;
@@ -335,12 +352,46 @@ public class SavingsController : ControllerBase
             "Deleted",
             currentUserId,
             oldValues: oldSnapshot,
-            newValues: CreateAuditSnapshot(entry)
+            newValues: await CreateAuditSnapshotAsync(entry)
         );
 
         await _db.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    private static IQueryable<SavingsEntryResponse> ApplyFilters(
+        IQueryable<SavingsEntryResponse> query,
+        SavingsListQuery request)
+    {
+        if (request.Month.HasValue)
+        {
+            var month = NormalizeMonth(request.Month.Value);
+            var nextMonth = month.AddMonths(1);
+            query = query.Where(entry => entry.Month >= month && entry.Month < nextMonth);
+        }
+
+        if (request.TeamId.HasValue)
+        {
+            query = query.Where(entry => entry.TeamId == request.TeamId.Value);
+        }
+
+        if (request.SavingReasonId.HasValue)
+        {
+            query = query.Where(entry => entry.SavingReasonId == request.SavingReasonId.Value);
+        }
+
+        if (request.ProductGroupId.HasValue)
+        {
+            query = query.Where(entry => entry.ProductGroupId == request.ProductGroupId.Value);
+        }
+
+        if (request.CreatedByUserId.HasValue)
+        {
+            query = query.Where(entry => entry.CreatedByUserId == request.CreatedByUserId.Value);
+        }
+
+        return query;
     }
 
     private IQueryable<SavingsEntryResponse> SavingsResponseQuery()
@@ -380,7 +431,10 @@ public class SavingsController : ControllerBase
         decimal newKvAmount,
         int teamId,
         int savingReasonId,
-        int productGroupId)
+        int productGroupId,
+        int? allowInactiveTeamId,
+        int? allowInactiveSavingReasonId,
+        int? allowInactiveProductGroupId)
     {
         var errors = new List<string>();
 
@@ -413,19 +467,22 @@ public class SavingsController : ControllerBase
             errors.Add("Neuer KV muss kleiner oder gleich alter KV sein.");
         }
 
-        var teamExists = await _db.Teams.AnyAsync(x => x.Id == teamId && x.IsActive);
+        var teamExists = await _db.Teams.AnyAsync(x =>
+            x.Id == teamId && (x.IsActive || x.Id == allowInactiveTeamId));
         if (!teamExists)
         {
             errors.Add("Das ausgewählte Team ist ungültig.");
         }
 
-        var reasonExists = await _db.SavingReasons.AnyAsync(x => x.Id == savingReasonId && x.IsActive);
+        var reasonExists = await _db.SavingReasons.AnyAsync(x =>
+            x.Id == savingReasonId && (x.IsActive || x.Id == allowInactiveSavingReasonId));
         if (!reasonExists)
         {
             errors.Add("Der ausgewählte Einspargrund ist ungültig.");
         }
 
-        var productGroupExists = await _db.ProductGroups.AnyAsync(x => x.Id == productGroupId && x.IsActive);
+        var productGroupExists = await _db.ProductGroups.AnyAsync(x =>
+            x.Id == productGroupId && (x.IsActive || x.Id == allowInactiveProductGroupId));
         if (!productGroupExists)
         {
             errors.Add("Die ausgewählte PG Nummer ist ungültig.");
@@ -485,8 +542,21 @@ public class SavingsController : ControllerBase
         return Math.Round(value, 2, MidpointRounding.AwayFromZero);
     }
 
-    private static object CreateAuditSnapshot(SavingsEntry entry)
+    private async Task<object> CreateAuditSnapshotAsync(SavingsEntry entry)
     {
+        var teamName = await _db.Teams
+            .Where(item => item.Id == entry.TeamId)
+            .Select(item => item.DisplayName)
+            .SingleOrDefaultAsync();
+        var savingReasonName = await _db.SavingReasons
+            .Where(item => item.Id == entry.SavingReasonId)
+            .Select(item => item.Name)
+            .SingleOrDefaultAsync();
+        var productGroupDisplayValue = await _db.ProductGroups
+            .Where(item => item.Id == entry.ProductGroupId)
+            .Select(item => item.DisplayValue)
+            .SingleOrDefaultAsync();
+
         return new
         {
             entry.Id,
@@ -496,8 +566,11 @@ public class SavingsController : ControllerBase
             entry.NewKvAmount,
             entry.SavingAmount,
             entry.TeamId,
+            TeamName = teamName,
             entry.SavingReasonId,
+            SavingReasonName = savingReasonName,
             entry.ProductGroupId,
+            ProductGroupDisplayValue = productGroupDisplayValue,
             entry.TransmissionDate,
             entry.CreatedByUserId,
             entry.CreatedAt,
@@ -523,9 +596,9 @@ public class SavingsController : ControllerBase
             new HistoryField("oldKvAmount", "Alter KV", HistoryValueKind.Money),
             new HistoryField("newKvAmount", "Neuer KV", HistoryValueKind.Money),
             new HistoryField("savingAmount", "Ersparnis", HistoryValueKind.Money),
-            new HistoryField("teamId", "Team-ID", HistoryValueKind.Default),
-            new HistoryField("savingReasonId", "Einspargrund-ID", HistoryValueKind.Default),
-            new HistoryField("productGroupId", "Produktgruppen-ID", HistoryValueKind.Default),
+            new HistoryField("teamId", "Team", HistoryValueKind.Team),
+            new HistoryField("savingReasonId", "Einspargrund", HistoryValueKind.SavingReason),
+            new HistoryField("productGroupId", "Produktgruppe", HistoryValueKind.ProductGroup),
             new HistoryField("isDeleted", "Gelöscht", HistoryValueKind.Boolean)
         };
 
@@ -586,8 +659,37 @@ public class SavingsController : ControllerBase
                 money.ToString("F2", CultureInfo.InvariantCulture),
             HistoryValueKind.Boolean when value.ValueKind is JsonValueKind.True or JsonValueKind.False =>
                 value.GetBoolean() ? "Ja" : "Nein",
+            HistoryValueKind.Team => ReadDisplayNameOrId(root.Value, value, "teamName", "Team-ID"),
+            HistoryValueKind.SavingReason => ReadDisplayNameOrId(root.Value, value, "savingReasonName", "Einspargrund-ID"),
+            HistoryValueKind.ProductGroup => ReadDisplayNameOrId(root.Value, value, "productGroupDisplayValue", "Produktgruppen-ID"),
             _ => value.ToString()
         };
+    }
+
+    private static string ReadDisplayNameOrId(JsonElement root, JsonElement idValue, string displayProperty, string idLabel)
+    {
+        if (root.TryGetProperty(displayProperty, out var displayValue) &&
+            displayValue.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(displayValue.GetString()))
+        {
+            return displayValue.GetString()!;
+        }
+
+        return $"{idLabel} {idValue}";
+    }
+
+    private BadRequestObjectResult ExpectedVersionRequired()
+    {
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title = "Versionsstand erforderlich",
+            Detail = "Zum Löschen muss der aktuell angezeigte Versionsstand mitgesendet werden.",
+            Instance = HttpContext.Request.Path
+        };
+        problem.Extensions["code"] = "EXPECTED_VERSION_REQUIRED";
+        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+        return BadRequest(problem);
     }
 
     private void AddAuditLog(Guid entityId, string action, Guid changedByUserId, object? oldValues, object? newValues)
@@ -679,7 +781,10 @@ public class SavingsController : ControllerBase
         Month,
         Kvnr,
         Money,
-        Boolean
+        Boolean,
+        Team,
+        SavingReason,
+        ProductGroup
     }
 
 }

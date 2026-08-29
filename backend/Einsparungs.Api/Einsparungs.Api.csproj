@@ -4,10 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Version>1.0.0</Version>
     <Product>HimiFlow Einsparungsdatenbank</Product>
-    <Company>EnricoDon10</Company>
-    <Authors>EnricoDon10</Authors>
-    <Copyright>Copyright © 2025-2026 EnricoDon10</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Company>ME Digitale GbR</Company>
+    <Authors>ME Digitale GbR</Authors>
+    <Copyright>Copyright © 2026 ME Digitale GbR</Copyright>
     <RepositoryUrl>https://github.com/EnricoDon10/HimiFlow</RepositoryUrl>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

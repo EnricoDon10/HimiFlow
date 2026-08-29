@@ -76,6 +76,12 @@ export const routes: Routes = [
         data: { roles: ['FachAdmin'] },
         loadComponent: () => import('./features/admin/product-groups/product-groups.component').then((m) => m.ProductGroupsComponent)
       },
+      {
+        path: 'admin/master-data',
+        canActivate: [roleGuard],
+        data: { roles: ['FachAdmin'] },
+        loadComponent: () => import('./features/admin/master-data/master-data.component').then((m) => m.MasterDataComponent)
+      },
 
       {
         path: 'statistics',

@@ -4,7 +4,7 @@ Stand: 29.08.2026 · technische Bestandsaufnahme, keine Rechtsberatung
 
 ## Aktueller Lizenzstand
 
-Im Repository liegt aktuell eine MIT-Lizenz mit `EnricoDon10` als Copyright-Inhaber. Der Quellcode ist damit im gegenwärtigen Stand nicht allein durch die Repository-Datei als proprietär ausgewiesen. Bereits unter MIT veröffentlichte oder überlassene Fassungen behalten die damals eingeräumten Rechte; eine spätere andere Lizenzierung entzieht diese Rechte nicht rückwirkend.
+Die aktuelle `LICENSE` ist proprietär und weist die Rechte der **ME Digitale GbR** zu. Das eigene Backend deklariert diese Rechte ebenfalls nicht mehr als MIT. Bereits unter einer früheren Lizenz veröffentlichte oder überlassene Fassungen behalten die damals eingeräumten Rechte; eine spätere andere Lizenzierung entzieht diese Rechte nicht rückwirkend.
 
 Eine künftige geschlossene kommerzielle Edition ist technisch möglich, setzt aber eine rechtlich geprüfte Rechtekette, einen eigenen Endkunden-/Softwarelizenzvertrag und eine bewusste Entscheidung voraus, welche Quellcodefassung unter welchen Bedingungen angeboten wird. Historische Commits werden nicht automatisiert verändert.
 
@@ -28,4 +28,4 @@ Die Drittanbieter-Lizenzen bleiben unabhängig von der Lizenz des eigenen HimiFl
 4. Release-Tag, Binärpaket, SBOM, Notices und vereinbarte Lizenz zusammen versionieren und unverändert archivieren.
 5. Keine privaten Lizenzsignaturschlüssel oder produktiven Kundengeheimnisse in Repository oder Releasepaket aufnehmen.
 
-Der technische Check ersetzt weder die lizenzrechtliche Beurteilung früherer Veröffentlichungen noch eine Vertragsprüfung.
+Der technische Check ersetzt weder die lizenzrechtliche Beurteilung früherer Veröffentlichungen noch eine Vertragsprüfung. Die MIT-Angaben in älteren Dokumentständen sind als historischer Prüfhinweis zu verstehen und nicht als Lizenzdeklaration des aktuellen Releases.

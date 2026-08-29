@@ -60,6 +60,19 @@ Der Betreiber überwacht täglich, ob ein gültiges Backup innerhalb des Sollint
 - Betreiber: Sicherungsziel, Monitoring, Schlüssel/Zugriffe, Aufbewahrung und Löschung.
 - Hersteller/Support: Skriptpflege und Unterstützung nach Vertrag, aber kein ungeplanter Zugriff auf Kundendaten.
 
+## Monitoring-Schnittstelle
+
+Ein externer Check kann ohne kundenspezifische Monitoringsoftware die folgenden Endpunkte abfragen:
+
+| Endpunkt | Zweck | Erwartung bei gesundem Betrieb |
+| --- | --- | --- |
+| `/api/health/live` | Prozess lebt | HTTP 200 |
+| `/api/health/ready` | Datenbank ist bereit | HTTP 200 |
+| `/api/health/operations` | Backup-/Betriebschecks | HTTP 200; bei `MISSING`, `OVERDUE` oder Fehler HTTP 503 |
+| `/api/operations/backups/status` | Detailstatus für SystemAdmin | `status=CURRENT`, `lastSuccessfulBackupUtc` gesetzt |
+
+Der Operations-Status liefert außerdem Alter, Überfälligkeit, Anzahl der Sicherungen und den konfigurierten Backupzielpfad (ohne Datenbankinhalte). Der Kunde kann daraus einen HTTP-, Windows-Service- oder PowerShell-Check bauen. Das externe Ziel, die Alarmierung und Eskalationswege bleiben kundenseitig konfigurierbar.
+
 ## SQL Server in der Phase Inbetriebnahme
 
 Die SQLite-Automatik wird bei `Database:Provider=SqlServer` deaktiviert. Dann gilt ausschließlich das vom SQL-Server-Betrieb freigegebene Konzept, zum Beispiel Voll-/Differenz-/Transaktionsprotokollsicherungen, Verschlüsselung, getrennte Medien, regelmäßige Restore-Tests und kundenseitiges Monitoring. Erst ein erfolgreich getesteter Restore erfüllt das Sicherungsziel.

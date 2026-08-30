@@ -75,6 +75,24 @@ dotnet ef migrations has-pending-model-changes --context SqlServerAppDbContext `
 
 Die SQL-Migration enthält Identity-Tabellen, FKs, Check Constraints, `decimal(18,2)`, `datetime2`, Lizenzinstallation, Audit und die produktionsrelevanten Indizes. Die feste Lizenzzeile `Id=1` wird auf SQL Server bewusst ohne Identity-Spalte modelliert.
 
+## Duplikatprüfung vor der Migration
+
+Einspargründe und Produktgruppen werden beim Schreiben API-seitig ohne Beachtung von Groß-/Kleinschreibung geprüft. Ein zusätzlicher Datenbank-Constraint wird bewusst nicht automatisch erzeugt: SQLite und SQL Server können unterschiedliche Kollationen verwenden, und eine nachträgliche Unique-Migration dürfte vorhandene Kundendaten nicht unkontrolliert verändern. Vor einer Übernahme der Local Edition prüft die DBA deshalb die Quelldatenbank und bereinigt bestätigte Dubletten fachlich:
+
+```sql
+SELECT LOWER(TRIM(Name)) AS NormalizedName, COUNT(*) AS Anzahl
+FROM SavingReasons
+GROUP BY LOWER(TRIM(Name))
+HAVING COUNT(*) > 1;
+
+SELECT LOWER(TRIM(DisplayValue)) AS NormalizedDisplayValue, COUNT(*) AS Anzahl
+FROM ProductGroups
+GROUP BY LOWER(TRIM(DisplayValue))
+HAVING COUNT(*) > 1;
+```
+
+Die Abfragen müssen jeweils `0` Zeilen liefern, bevor ein SQL-Server-Schema bzw. ein idempotentes Migrationsskript angewendet wird. Inaktive historische Datensätze bleiben erhalten; eine fachliche Bereinigung darf daher nur über die freigegebene Stammdatenverwaltung beziehungsweise einen dokumentierten Datenbereinigungsauftrag erfolgen. Nach der Migration wird der gleiche Check auf SQL Server erneut ausgeführt.
+
 ## Noch kundenspezifisch abzunehmen
 
 - echte SQL-Server-Version und Hochverfügbarkeitsvorgaben

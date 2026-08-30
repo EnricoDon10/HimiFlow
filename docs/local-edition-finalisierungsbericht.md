@@ -1,6 +1,6 @@
 # HimiFlow – Finalisierungsbericht Local Edition
 
-Stand: 29.08.2026 · SQLite-Local-Edition · technische Bestandsaufnahme, keine Rechtsberatung
+Stand: 30.08.2026 · SQLite-Local-Edition · technische Bestandsaufnahme, keine Rechtsberatung
 
 ## 1. Umgesetzt
 

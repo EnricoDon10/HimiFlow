@@ -50,6 +50,9 @@ export class MasterDataComponent implements OnInit {
   savingReasonSearch = '';
   productGroupSearch = '';
 
+  private loadRevision = 0;
+  private mutationRevision = 0;
+
   constructor(
     private readonly masterDataService: MasterDataService,
     readonly licenseService: LicenseService
@@ -60,6 +63,8 @@ export class MasterDataComponent implements OnInit {
   }
 
   load(): void {
+    const loadRevision = ++this.loadRevision;
+    const mutationRevision = this.mutationRevision;
     this.isLoading.set(true);
     this.errorMessage.set(null);
     forkJoin({
@@ -68,12 +73,24 @@ export class MasterDataComponent implements OnInit {
       productGroups: this.masterDataService.getManagedProductGroups()
     }).subscribe({
       next: (result) => {
+        if (loadRevision !== this.loadRevision || mutationRevision !== this.mutationRevision) {
+          if (loadRevision === this.loadRevision) {
+            this.isLoading.set(false);
+          }
+          return;
+        }
         this.teams.set(result.teams);
         this.savingReasons.set(result.savingReasons);
         this.productGroups.set(result.productGroups);
         this.isLoading.set(false);
       },
       error: (error) => {
+        if (loadRevision !== this.loadRevision || mutationRevision !== this.mutationRevision) {
+          if (loadRevision === this.loadRevision) {
+            this.isLoading.set(false);
+          }
+          return;
+        }
         this.errorMessage.set(this.extractErrorMessage(error, 'Stammdaten konnten nicht geladen werden.'));
         this.isLoading.set(false);
       }
@@ -266,6 +283,9 @@ export class MasterDataComponent implements OnInit {
     }
 
     this.clearMessages();
+    // Ignore an older initial/refresh response that arrives after a mutation.
+    // Otherwise it could overwrite the just-created master-data value.
+    this.mutationRevision++;
     this.isSaving.set(true);
     request().subscribe({
       next: (value) => {

@@ -59,9 +59,11 @@ test('FachAdmin pflegt Stammdaten und erfasst, bearbeitet und löscht eine Einsp
   await expect(page.getByText('E2E - E2E Team')).toBeVisible();
   await forms.nth(1).getByLabel('Bezeichnung').fill('E2E Grund');
   await forms.nth(1).getByRole('button', { name: 'Einspargrund anlegen' }).click();
+  await page.getByRole('button', { name: 'Aktualisieren' }).click();
   await expect(page.getByText('E2E Grund')).toBeVisible();
   await forms.nth(2).getByLabel('Produktgruppe').fill('E2E Produktgruppe');
   await forms.nth(2).getByRole('button', { name: 'Produktgruppe anlegen' }).click();
+  await page.getByRole('button', { name: 'Aktualisieren' }).click();
   await expect(page.getByText('E2E Produktgruppe')).toBeVisible();
 
   await page.getByRole('button', { name: 'Aktualisieren' }).click();

@@ -111,8 +111,11 @@ public sealed class SqliteBackupService
     {
         if (string.IsNullOrWhiteSpace(fileName) ||
             !string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal) ||
-            fileName.Contains(Path.DirectorySeparatorChar) ||
-            fileName.Contains(Path.AltDirectorySeparatorChar))
+            // Validate both separators explicitly. A request can be produced on
+            // another operating system than the host (for example a Linux CI
+            // runner receiving a Windows-style "..\\outside.db" value).
+            fileName.Contains('/') ||
+            fileName.Contains('\\'))
         {
             return new BackupValidationResult(false, "Ungültiger Backup-Dateiname.");
         }

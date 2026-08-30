@@ -4,8 +4,8 @@ Stand: 29.08.2026 · SQLite-Local-Edition · technische Bestandsaufnahme, keine 
 
 ## 1. Umgesetzt
 
-- FachAdmin-Stammdatenverwaltung für Organisationseinheiten, Einspargründe und Produktgruppen mit Erstellen, Bearbeiten und Löschen.
-- Löschen wird als nachvollziehbares Soft-Delete umgesetzt: Der Wert verschwindet aus Verwaltung und Auswahl, historische Datensätze bleiben lesbar. Das Löschen einer Organisationseinheit mit aktiven Benutzern wird mit HTTP 409 (`TEAM_HAS_ACTIVE_USERS`) und Anzahl der Benutzer abgelehnt.
+- FachAdmin-Stammdatenverwaltung für Organisationseinheiten, Einspargründe und Produktgruppen mit Erstellen, Bearbeiten sowie Deaktivieren/Reaktivieren.
+- Deaktivierung wird als nachvollziehbares Soft-Delete umgesetzt: Inaktive Werte bleiben in der Verwaltung sichtbar, verschwinden aus der Auswahl für neue Einsparungen und historische Datensätze bleiben lesbar. Das Deaktivieren einer Organisationseinheit mit aktiven Benutzern wird mit HTTP 409 (`TEAM_HAS_ACTIVE_USERS`) und Anzahl der Benutzer abgelehnt.
 - Stammdatenänderungen werden mit Benutzer, Zeitpunkt, Aktion sowie alten/neuen Werten auditiert.
 - Kundenspezifisches Demo-Seeding ist von technischen Rollen getrennt und in Production standardmäßig deaktiviert.
 - Proprietäre Release-/Assembly-Metadaten auf ME Digitale GbR korrigiert; keine MIT-Deklaration für den eigenen Code.
@@ -14,7 +14,7 @@ Stand: 29.08.2026 · SQLite-Local-Edition · technische Bestandsaufnahme, keine 
 - CodeQL JavaScript/TypeScript auf `build-mode: none` korrigiert; C# bleibt bei `autobuild`.
 - Gitleaks als etablierter CI-Secret-Scanner ergänzt; der Workflow checkt mit vollständigem Git-Checkout.
 - CSV-/Excel-Exporte gegen Spreadsheet-Formula-Injection neutralisiert; CSV schreibt zeilenweise und Exporte haben Filter, Limit und Auditdaten.
-- `/api/savings/my` serverseitig paginiert; das Frontend zeigt Seite, Gesamtanzahl und Seitengröße einschließlich der expliziten Auswahl „Alle“.
+- `/api/savings/my` serverseitig paginiert; das Frontend zeigt Seite, Gesamtanzahl und die begrenzten Seitengrößen 25, 50 und 100. Vollständige Datenmengen werden exportiert.
 - Fachhistorie speichert für neue Änderungen damalige Team-, Einspargrund- und Produktgruppenanzeigen; ältere IDs bleiben abwärtskompatibel.
 - SQLite-Backup/Restore-Test, Monitoring-Dokumentation und reproduzierbarer 10.000-Zeilen-Performance-Smoke-Test ergänzt.
 - Kleine Playwright-Suite für isolierte Erstlogin-, FachAdmin-, Stammdaten-, Einsparungs-, Lizenzseiten- und Logout-Flows ergänzt; eigener CI-Workflow vorhanden.
@@ -24,13 +24,13 @@ Stand: 29.08.2026 · SQLite-Local-Edition · technische Bestandsaufnahme, keine 
 Im lokalen Prüfstand erfolgreich:
 
 - Backend Release-Build: erfolgreich, 0 Fehler / 0 Warnungen.
-- Backend Tests: **96 erfolgreich**, 0 fehlgeschlagen, 0 übersprungen.
+- Backend Tests: **109 erfolgreich**, 0 fehlgeschlagen, 0 übersprungen.
 - Frontend Production-Build: erfolgreich (Warnung: bestehendes My-Savings-SCSS überschreitet das 4-kB-Budget um 25 Bytes).
 - Frontend Unit-/Component-Tests: **16 erfolgreich**.
 - EF Core SQLite: keine ausstehenden Modelländerungen.
 - EF Core SQL-Server-Kontext: keine ausstehenden Modelländerungen; idempotentes Skript wurde nur erzeugt, kein SQL Server gestartet.
 - Export-Controller-Tests: Filter, Limit und Formula-Injection erfolgreich.
-- Playwright-Konfiguration: 3 Tests werden erkannt (`playwright test --list`). Ein vollständiger Browserlauf ist lokal erst möglich, wenn ein .NET-10-SDK über `HIMIFLOW_DOTNET` verfügbar ist; die GitHub-CI richtet .NET 10 und Chromium selbst ein.
+- Playwright: 3 kritische Tests wurden mit isolierter temporärer Datenbank vollständig erfolgreich ausgeführt; die GitHub-CI richtet .NET 10 und Chromium selbst ein.
 - `npm ci` im bestehenden Windows-Arbeitsverzeichnis war wegen eines laufenden `esbuild.exe`-Prozesses mit `EPERM` blockiert. Ein sauberer temporärer Installationslauf wurde für Build und Tests verwendet.
 - Gitleaks ist lokal nicht installiert; der verbindliche Scan läuft im CI-Workflow.
 
@@ -40,7 +40,7 @@ ASP.NET Core Identity, Cookie-/CSRF-Schutz, Rollenprüfung, Passwortwechsel, Loc
 
 ## 4. FachAdmin-Stammdaten
 
-Nur `FachAdmin` darf Stammdaten schreiben. `SystemAdmin` bleibt technische Benutzer-/Lizenzadministration und erhält dadurch keine fachlichen Schreibrechte. Aktive Werte erscheinen unmittelbar in den Erfassungs-Dropdowns; gelöschte Werte werden für neue Datensätze ausgeblendet, bleiben aber in historischen Datensätzen lesbar.
+Nur `FachAdmin` darf Stammdaten schreiben. `SystemAdmin` bleibt technische Benutzer-/Lizenzadministration und erhält dadurch keine fachlichen Schreibrechte. Aktive Werte erscheinen unmittelbar in den Erfassungs-Dropdowns; deaktivierte Werte werden für neue Datensätze ausgeblendet, bleiben aber in historischen Datensätzen lesbar.
 
 ## 5. Performance
 
@@ -54,7 +54,7 @@ Der Smoke-Test verwendet 10.000 synthetische SQLite-Datensätze ohne echte KVNR.
 - Produktives, getrenntes Backupziel und Kundenmonitoring konfigurieren sowie Restore-Übung durchführen.
 - Anbieter-/Impressumsdaten, Datenschutzrollen, AVV/DSFA, Löschkonzept, EULA, SLA, Preis und Supportvertrag juristisch/kaufmännisch freigeben.
 - SQL-Server-Migration erst in der Kunden-Inbetriebnahme durchführen.
-- Playwright-Browserlauf in CI abwarten und bei Bedarf umgebungsspezifische Selektoren nachschärfen.
+- Playwright-Browserlauf in der Ziel-CI regelmäßig ausführen und umgebungsspezifische Selektoren bei Bedarf nachschärfen.
 
 ## 7. Reifegrad
 

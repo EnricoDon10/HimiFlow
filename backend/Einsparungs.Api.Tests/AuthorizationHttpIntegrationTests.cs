@@ -183,6 +183,38 @@ public sealed class AuthorizationHttpIntegrationTests
         Assert.AreEqual(HttpStatusCode.OK, allowed.StatusCode);
     }
 
+    [TestMethod]
+    public async Task SystemAdminCanMoveEmployeeAndInactiveTeamBlocksReactivation()
+    {
+        using var factory = new HimiFlowWebApplicationFactory();
+        var employee = await factory.AddUserAsync("team.employee", EmployeePassword, ApplicationRoles.Mitarbeiter);
+        var targetTeamId = await factory.CreateTeamAsync("Integration Zielteam");
+        var admin = CreateSession(factory);
+        using var login = await admin.LoginAsync(
+            HimiFlowWebApplicationFactory.InitialAdminUserName,
+            HimiFlowWebApplicationFactory.InitialAdminPassword);
+        Assert.AreEqual(HttpStatusCode.OK, login.StatusCode);
+        using var changed = await admin.ChangePasswordAsync(
+            HimiFlowWebApplicationFactory.InitialAdminPassword,
+            HimiFlowWebApplicationFactory.ChangedAdminPassword);
+        Assert.AreEqual(HttpStatusCode.OK, changed.StatusCode);
+        await admin.RefreshCsrfAsync();
+
+        using var move = await admin.Client.PutAsJsonAsync(
+            $"/api/user-management/{employee.Id}/team",
+            new { teamId = targetTeamId });
+        Assert.AreEqual(HttpStatusCode.OK, move.StatusCode);
+        using var moved = JsonDocument.Parse(await move.Content.ReadAsStringAsync());
+        Assert.AreEqual(targetTeamId, moved.RootElement.GetProperty("teamId").GetInt32());
+
+        await factory.SetUserActiveAsync(employee.Id, false);
+        await factory.SetTeamActiveAsync(targetTeamId, false);
+        await admin.RefreshCsrfAsync();
+        using var activate = await admin.Client.PostAsync($"/api/user-management/{employee.Id}/activate", content: null);
+        Assert.AreEqual(HttpStatusCode.Conflict, activate.StatusCode);
+        StringAssert.Contains(await activate.Content.ReadAsStringAsync(), "USER_TEAM_INACTIVE");
+    }
+
     private static HttpApiSession CreateSession(HimiFlowWebApplicationFactory factory)
     {
         return new HttpApiSession(factory.CreateClient(new WebApplicationFactoryClientOptions

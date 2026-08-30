@@ -126,6 +126,58 @@ public sealed class SqliteBackupServiceTests
         }
     }
 
+    [TestMethod]
+    public async Task ValidateNamedAsync_RejectsPathTraversal()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"HimiFlow-backup-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var service = CreateService(root, Path.Combine(root, "source.db"));
+            var result = await service.ValidateNamedAsync("..\\outside.db");
+            Assert.IsFalse(result.IsValid);
+            StringAssert.Contains(result.Result, "Dateiname");
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public async Task InvalidBackupDoesNotOverwriteExistingDatabase()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"HimiFlow-backup-test-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var target = Path.Combine(root, "target.db");
+            await using (var connection = new SqliteConnection($"Data Source={target};Pooling=False"))
+            {
+                await connection.OpenAsync();
+                await using var command = connection.CreateCommand();
+                command.CommandText = "CREATE TABLE Sample (Value TEXT); INSERT INTO Sample VALUES ('keep');";
+                await command.ExecuteNonQueryAsync();
+            }
+
+            var invalid = Path.Combine(root, "invalid.db");
+            await File.WriteAllTextAsync(invalid, "corrupt");
+            var service = CreateService(root, target);
+            var validation = await service.ValidateAsync(invalid);
+            Assert.IsFalse(validation.IsValid);
+
+            await using var verify = new SqliteConnection($"Data Source={target};Mode=ReadOnly;Pooling=False");
+            await verify.OpenAsync();
+            await using var read = verify.CreateCommand();
+            read.CommandText = "SELECT Value FROM Sample";
+            Assert.AreEqual("keep", await read.ExecuteScalarAsync());
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static SqliteBackupService CreateService(string root, string databasePath)
     {
         var configuration = new ConfigurationBuilder()

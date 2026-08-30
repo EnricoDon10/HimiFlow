@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Data.Sqlite;
 
 namespace Einsparungs.Api.Security;
@@ -7,6 +8,7 @@ public sealed class SqliteBackupService
     private readonly IConfiguration configuration;
     private readonly IHostEnvironment environment;
     private readonly ILogger<SqliteBackupService> logger;
+    private readonly ConcurrentDictionary<string, ValidationInfo> validationCache = new(StringComparer.OrdinalIgnoreCase);
 
     public SqliteBackupService(
         IConfiguration configuration,
@@ -81,6 +83,8 @@ public sealed class SqliteBackupService
                 $"Das SQLite-Backup ist nicht lesbar und wurde verworfen: {validation.Result}");
         }
 
+        validationCache[destinationPath] = new ValidationInfo(validation.IsValid, validation.Result, DateTime.UtcNow);
+
         logger.LogInformation("SQLite-Backup erstellt: {BackupFileName} ({SizeBytes} Bytes)", fileName, fileInfo.Length);
         return new BackupFile(fileName, fileInfo.Length, fileInfo.LastWriteTimeUtc, destinationPath);
     }
@@ -123,7 +127,16 @@ public sealed class SqliteBackupService
             return new BackupValidationResult(false, "Ungültiger Backup-Pfad.");
         }
 
-        return await ValidateAsync(fullPath, cancellationToken);
+        var validation = await ValidateAsync(fullPath, cancellationToken);
+        validationCache[fullPath] = new ValidationInfo(validation.IsValid, validation.Result, DateTime.UtcNow);
+        return validation;
+    }
+
+    public ValidationInfo? GetLastValidation(string fullPath)
+    {
+        return validationCache.TryGetValue(Path.GetFullPath(fullPath), out var validation)
+            ? validation
+            : null;
     }
 
     public async Task<BackupValidationResult> ValidateAsync(
@@ -239,4 +252,5 @@ public sealed class SqliteBackupService
 
     public sealed record BackupFile(string FileName, long SizeBytes, DateTime CreatedAtUtc, string FullPath);
     public sealed record BackupValidationResult(bool IsValid, string Result);
+    public sealed record ValidationInfo(bool IsValid, string Result, DateTime CheckedAtUtc);
 }

@@ -101,11 +101,16 @@ public sealed class OperationsController : ControllerBase
         return Ok(new RestorePreparationResponse(fileName, validation.IsValid, message, checkedAt));
     }
 
-    private static BackupResponse ToResponse(
+    private BackupResponse ToResponse(
         SqliteBackupService.BackupFile backup,
         string integrityStatus = "Nicht geprüft",
         DateTime? lastValidatedAtUtc = null)
     {
+        var validation = backupService.GetLastValidation(backup.FullPath);
+        integrityStatus = validation is null
+            ? integrityStatus
+            : validation.IsValid ? "Gültig" : "Ungültig";
+        lastValidatedAtUtc ??= validation?.CheckedAtUtc;
         return new BackupResponse(
             backup.FileName,
             backup.SizeBytes,

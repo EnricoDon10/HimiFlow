@@ -78,22 +78,16 @@ public sealed class SavingsPaginationTests
     }
 
     [TestMethod]
-    public async Task GetAllSavings_WithPageSizeZero_ReturnsAllItemsOnOnePage()
+    public async Task GetAllSavings_WithPageSizeZeroIsRejected()
     {
         await using var fixture = await PaginationFixture.CreateAsync();
-
         var result = await fixture.Controller.GetAllSavings(new SavingsListQuery
         {
             Page = 1,
             PageSize = 0
         });
 
-        var page = ((OkObjectResult)result.Result!).Value as PagedResponse<SavingsEntryResponse>;
-        Assert.IsNotNull(page);
-        Assert.AreEqual(0, page.PageSize);
-        Assert.AreEqual(4, page.TotalCount);
-        Assert.AreEqual(1, page.TotalPages);
-        Assert.AreEqual(4, page.Items.Count);
+        Assert.IsInstanceOfType(result.Result, typeof(BadRequestObjectResult));
     }
 
     [TestMethod]

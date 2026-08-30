@@ -22,4 +22,20 @@ public sealed class SpreadsheetInjectionProtectionTests
     {
         Assert.AreEqual("Bochum 1", SpreadsheetInjectionProtection.NeutralizeText("Bochum 1"));
     }
+
+    [TestMethod]
+    [DataRow("\t=SUM(1,2)")]
+    [DataRow("\r=HYPERLINK(\"https://example.invalid\")")]
+    [DataRow("\n+SUM(1,2)")]
+    [DataRow("  @SUM(1,2)")]
+    public void ControlCharactersBeforeFormulaAreNeutralized(string value)
+    {
+        Assert.AreEqual($"'{value}", SpreadsheetInjectionProtection.NeutralizeText(value));
+    }
+
+    [TestMethod]
+    public void LeadingTabInOrdinaryTextIsPreserved()
+    {
+        Assert.AreEqual("\tHinweis", SpreadsheetInjectionProtection.NeutralizeText("\tHinweis"));
+    }
 }

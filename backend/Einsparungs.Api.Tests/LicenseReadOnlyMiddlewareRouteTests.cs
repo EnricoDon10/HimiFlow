@@ -13,6 +13,8 @@ public sealed class LicenseReadOnlyMiddlewareRouteTests
     [DataRow("/api/auth/change-password", true)]
     [DataRow("/api/admin/license", true)]
     [DataRow("/api/operations/backups", true)]
+    [DataRow("/api/operations/backups/einsparungen_1.db/validate", true)]
+    [DataRow("/api/operations/backups/einsparungen_1.db/prepare-restore", true)]
     [DataRow("/api/user-management/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/reset-password", true)]
     [DataRow("/api/user-management/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/deactivate", true)]
     [DataRow("/api/user-management", false)]

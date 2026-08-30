@@ -182,6 +182,31 @@ internal sealed class HimiFlowWebApplicationFactory : WebApplicationFactory<Prog
         return await db.Teams.OrderBy(team => team.Id).Select(team => team.Id).FirstAsync();
     }
 
+    public async Task<int> CreateTeamAsync(string displayName)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var team = new Team
+        {
+            Code = $"TEST-{Guid.NewGuid():N}"[..20],
+            Name = displayName,
+            DisplayName = displayName,
+            IsActive = true
+        };
+        db.Teams.Add(team);
+        await db.SaveChangesAsync();
+        return team.Id;
+    }
+
+    public async Task SetTeamActiveAsync(int teamId, bool isActive)
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var team = await db.Teams.SingleAsync(item => item.Id == teamId);
+        team.IsActive = isActive;
+        await db.SaveChangesAsync();
+    }
+
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);

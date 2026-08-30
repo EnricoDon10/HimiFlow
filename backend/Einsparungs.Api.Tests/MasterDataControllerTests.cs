@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Einsparungs.Api.Tests;
 
@@ -30,6 +31,10 @@ public sealed class MasterDataControllerTests
         var reason = ((CreatedAtActionResult)reasonResult.Result!).Value as SavingReasonResponse;
         Assert.IsNotNull(reason);
 
+        var activeDuplicate = await fixture.Controller.CreateSavingReason(
+            new SavingReasonSaveRequest("Vertragsoptimierung"), CancellationToken.None);
+        Assert.IsInstanceOfType(activeDuplicate.Result, typeof(BadRequestObjectResult));
+
         var deactivate = await fixture.Controller.DeactivateSavingReason(reason.Id, CancellationToken.None);
         Assert.IsTrue(((OkObjectResult)deactivate.Result!).Value is SavingReasonResponse { IsActive: false });
 
@@ -37,7 +42,63 @@ public sealed class MasterDataControllerTests
         var activeReasons = ((OkObjectResult)lookup.Result!).Value as IReadOnlyList<SavingReasonResponse>;
         Assert.IsNotNull(activeReasons);
         Assert.IsFalse(activeReasons.Any(item => item.Id == reason.Id));
+        var managedLookup = await fixture.Controller.GetManagedSavingReasons(CancellationToken.None);
+        var managedReasons = ((OkObjectResult)managedLookup.Result!).Value as IReadOnlyList<SavingReasonResponse>;
+        Assert.IsNotNull(managedReasons);
+        Assert.IsTrue(managedReasons.Any(item => item.Id == reason.Id && !item.IsActive));
         Assert.IsTrue(await fixture.Db.AuditLogs.AnyAsync(log => log.EntityName == "SavingReason" && log.Action == "Deactivated"));
+    }
+
+    [TestMethod]
+    public async Task InactiveDuplicateReturnsReactivationConflictAndActivationRestoresLookup()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        var create = await fixture.Controller.CreateSavingReason(
+            new SavingReasonSaveRequest("Kompressionsartikel"), CancellationToken.None);
+        var reason = ((CreatedAtActionResult)create.Result!).Value as SavingReasonResponse;
+        Assert.IsNotNull(reason);
+        await fixture.Controller.DeactivateSavingReason(reason.Id, CancellationToken.None);
+
+        var duplicate = await fixture.Controller.CreateSavingReason(
+            new SavingReasonSaveRequest(" kompressionsARTIKEL "), CancellationToken.None);
+        var conflict = duplicate.Result as ConflictObjectResult;
+        Assert.IsNotNull(conflict);
+        var problem = conflict.Value as ProblemDetails;
+        Assert.IsNotNull(problem);
+        Assert.AreEqual("MASTER_DATA_INACTIVE_EXISTS", problem.Extensions["code"]);
+        Assert.AreEqual(reason.Id, problem.Extensions["id"]);
+
+        var activate = await fixture.Controller.ActivateSavingReason(reason.Id, CancellationToken.None);
+        Assert.IsTrue(((OkObjectResult)activate.Result!).Value is SavingReasonResponse { IsActive: true });
+        var lookup = await fixture.Controller.GetSavingReasons(CancellationToken.None);
+        var activeReasons = ((OkObjectResult)lookup.Result!).Value as IReadOnlyList<SavingReasonResponse>;
+        Assert.IsNotNull(activeReasons);
+        Assert.IsTrue(activeReasons.Any(item => item.Id == reason.Id));
+    }
+
+    [TestMethod]
+    public async Task InactiveTeamAndProductGroupDuplicatesReturnSpecificConflict()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        var teamCreate = await fixture.Controller.CreateTeam(
+            new TeamSaveRequest(OrganizationUnit: "ORG-99 - Test"), CancellationToken.None);
+        var team = ((CreatedAtActionResult)teamCreate.Result!).Value as TeamResponse;
+        Assert.IsNotNull(team);
+        await fixture.Controller.DeactivateTeam(team.Id, CancellationToken.None);
+        var teamDuplicate = await fixture.Controller.CreateTeam(
+            new TeamSaveRequest(OrganizationUnit: "org-99 - TEST"), CancellationToken.None);
+        Assert.AreEqual("MASTER_DATA_INACTIVE_EXISTS", ((ProblemDetails)((ConflictObjectResult)teamDuplicate.Result!).Value!).Extensions["code"]);
+
+        var groupCreate = await fixture.Controller.CreateProductGroup(
+            new ProductGroupSaveRequest("Kompressionsartikel"), CancellationToken.None);
+        var group = ((CreatedAtActionResult)groupCreate.Result!).Value as ProductGroupResponse;
+        Assert.IsNotNull(group);
+        await fixture.Controller.DeactivateProductGroup(group.Id, CancellationToken.None);
+        var groupDuplicate = await fixture.Controller.CreateProductGroup(
+            new ProductGroupSaveRequest(" kompressionsARTIKEL "), CancellationToken.None);
+        Assert.AreEqual("MASTER_DATA_INACTIVE_EXISTS", ((ProblemDetails)((ConflictObjectResult)groupDuplicate.Result!).Value!).Extensions["code"]);
     }
 
     [TestMethod]
@@ -53,6 +114,33 @@ public sealed class MasterDataControllerTests
         Assert.IsNotNull(problem);
         Assert.AreEqual("TEAM_HAS_ACTIVE_USERS", problem.Extensions["code"]);
         Assert.AreEqual(1, problem.Extensions["activeUserCount"]);
+    }
+
+    [TestMethod]
+    public async Task AuditChangedFieldsContainsOnlyFieldsThatActuallyChanged()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+        var create = await fixture.Controller.CreateSavingReason(
+            new SavingReasonSaveRequest("Original"), CancellationToken.None);
+        var reason = ((CreatedAtActionResult)create.Result!).Value as SavingReasonResponse;
+        Assert.IsNotNull(reason);
+
+        await fixture.Controller.UpdateSavingReason(
+            reason.Id,
+            new SavingReasonSaveRequest("Neu"),
+            CancellationToken.None);
+        var updateAudit = await fixture.Db.AuditLogs
+            .Where(log => log.EntityName == "SavingReason" && log.Action == "Updated")
+            .OrderByDescending(log => log.ChangedAt)
+            .FirstAsync();
+        CollectionAssert.AreEqual(new[] { "name" }, JsonSerializer.Deserialize<string[]>(updateAudit.ChangedFieldsJson!)!);
+
+        await fixture.Controller.DeactivateSavingReason(reason.Id, CancellationToken.None);
+        var deactivateAudit = await fixture.Db.AuditLogs
+            .Where(log => log.EntityName == "SavingReason" && log.Action == "Deactivated")
+            .OrderByDescending(log => log.ChangedAt)
+            .FirstAsync();
+        CollectionAssert.AreEqual(new[] { "isActive" }, JsonSerializer.Deserialize<string[]>(deactivateAudit.ChangedFieldsJson!)!);
     }
 
     [TestMethod]
@@ -74,7 +162,9 @@ public sealed class MasterDataControllerTests
         var managed = await fixture.Controller.GetManagedTeams(CancellationToken.None);
         var managedTeams = ((OkObjectResult)managed.Result!).Value as IReadOnlyList<TeamResponse>;
         Assert.IsNotNull(managedTeams);
-        Assert.IsFalse(managedTeams.Any(item => item.Id == team.Id));
+        Assert.IsTrue(managedTeams.Any(item => item.Id == team.Id && !item.IsActive));
+        var reactivated = await fixture.Controller.ActivateTeam(team.Id, CancellationToken.None);
+        Assert.IsTrue(((OkObjectResult)reactivated.Result!).Value is TeamResponse { IsActive: true });
         Assert.IsTrue(await fixture.Db.AuditLogs.AnyAsync(log => log.EntityName == "Team" && log.EntityId == team.Id.ToString() && log.Action == "Deleted"));
     }
 

@@ -133,7 +133,23 @@
                   }
                 </select>
               </td>
-              <td>{{ user.teamDisplayName || '-' }}</td>
+              <td>
+                @if (user.roleName === 'SystemAdmin') {
+                  <span>-</span>
+                } @else {
+                  <select
+                    [ngModel]="user.teamId"
+                    [name]="'team-' + user.id"
+                    (ngModelChange)="changeTeam(user, $event)"
+                    [disabled]="processingUserId() === user.id"
+                    [attr.aria-label]="'Organisationseinheit für ' + user.displayName"
+                  >
+                    @for (team of teams(); track team.id) {
+                      <option [ngValue]="team.id">{{ team.displayName }}</option>
+                    }
+                  </select>
+                }
+              </td>
               <td>
                 <span class="status-badge" [class.inactive]="!user.isActive">
                   {{ user.isActive ? 'Aktiv' : 'Deaktiviert' }}

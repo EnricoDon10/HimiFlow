@@ -159,6 +159,35 @@ export class UserManagementComponent implements OnInit {
     });
   }
 
+  changeTeam(user: UserManagementUser, teamId: number): void {
+    if (user.roleName === 'SystemAdmin' || !teamId || teamId === user.teamId) {
+      return;
+    }
+
+    const targetTeam = this.teams().find(team => team.id === teamId);
+    if (!targetTeam) {
+      return;
+    }
+
+    if (!confirm(`Organisationseinheit von ${user.displayName} zu „${targetTeam.displayName}“ ändern?`)) {
+      return;
+    }
+
+    this.startAction(user.id);
+    this.userManagementService.changeTeam(user.id, { teamId }).subscribe({
+      next: (updatedUser) => {
+        this.users.set(this.users().map(item => item.id === updatedUser.id ? updatedUser : item));
+        this.successMessage.set('Organisationseinheit wurde geändert. Die bisherige Sitzung des Benutzers ist damit ungültig.');
+        this.finishAction();
+      },
+      error: (error) => {
+        this.errorMessage.set(this.extractErrorMessage(error));
+        this.finishAction();
+        this.loadUsers();
+      }
+    });
+  }
+
   toggleActive(user: UserManagementUser): void {
     const action = user.isActive ? 'deaktivieren' : 'aktivieren';
 

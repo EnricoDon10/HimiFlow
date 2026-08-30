@@ -2,7 +2,7 @@
   <div>
     <p>Fachadministration</p>
     <h1>Stammdaten verwalten</h1>
-    <span>Organisationseinheiten, Einspargründe und Produktgruppen zentral pflegen. Gelöschte Werte bleiben in historischen Datensätzen erhalten.</span>
+    <span>Organisationseinheiten, Einspargründe und Produktgruppen zentral pflegen. Deaktivierte Werte bleiben in historischen Datensätzen erhalten.</span>
   </div>
   <button type="button" (click)="load()" [disabled]="isLoading()">Aktualisieren</button>
 </section>
@@ -12,6 +12,25 @@
 }
 @if (errorMessage()) { <section class="message error" role="alert">{{ errorMessage() }}</section> }
 @if (successMessage()) { <section class="message success" role="status">{{ successMessage() }}</section> }
+@if (reactivationCandidate(); as candidate) {
+  <section class="message warning reactivation-message" role="alert">
+    <span>{{ candidate.displayName }} existiert bereits, ist aber deaktiviert. Sie können den Wert wieder aktivieren.</span>
+    <div>
+      <button class="small primary" type="button" (click)="reactivatePending()" [disabled]="isSaving()">Reaktivieren</button>
+      <button class="small" type="button" (click)="clearReactivationCandidate()">Später</button>
+    </div>
+  </section>
+}
+
+<section class="list-tools" aria-label="Stammdatenfilter">
+  <label>Status
+    <select name="statusFilter" [(ngModel)]="statusFilter">
+      <option [ngValue]="'ALL'">Alle Status</option>
+      <option [ngValue]="'ACTIVE'">Aktiv</option>
+      <option [ngValue]="'INACTIVE'">Inaktiv</option>
+    </select>
+  </label>
+</section>
 
 <section class="master-grid">
   <article class="data-card">
@@ -20,16 +39,19 @@
       <label class="full-width">Organisationseinheit <input name="organizationUnit" [(ngModel)]="organizationUnit" maxlength="200" placeholder="z. B. 3410 - Bochum 1" required /></label>
       <button class="primary" type="submit" [disabled]="isSaving() || isReadOnly()">Organisationseinheit anlegen</button>
     </form>
+    <label class="search-field">Suche
+      <input name="teamSearch" [(ngModel)]="teamSearch" placeholder="Organisationseinheit suchen" />
+    </label>
     <div class="table-wrapper">
       <table>
         <thead><tr><th>Organisationseinheit</th><th>Status</th><th>Aktive Benutzer</th><th>Aktionen</th></tr></thead>
         <tbody>
-          @for (team of teams(); track team.id) {
+          @for (team of visibleTeams(); track team.id) {
             <tr>
               <td>@if (editingTeamId() === team.id) { <input name="editOrganizationUnit" [(ngModel)]="editOrganizationUnit" maxlength="200" /> } @else { <strong>{{ team.displayName }}</strong> }</td>
               <td><span class="status" [class.inactive]="!team.isActive">{{ team.isActive ? 'Aktiv' : 'Inaktiv' }}</span></td>
               <td>{{ team.activeUserCount ?? 0 }}</td>
-              <td class="actions">@if (editingTeamId() === team.id) { <button class="small primary" type="button" (click)="updateTeam(team)" [disabled]="isSaving()">Speichern</button><button class="small" type="button" (click)="cancelTeamEditing()">Abbrechen</button> } @else { <button class="small" type="button" (click)="startTeamEditing(team)">Bearbeiten</button><button class="small danger" type="button" (click)="deleteTeam(team)" [disabled]="isSaving() || isReadOnly()">Löschen</button> }</td>
+              <td class="actions">@if (editingTeamId() === team.id) { <button class="small primary" type="button" (click)="updateTeam(team)" [disabled]="isSaving()">Speichern</button><button class="small" type="button" (click)="cancelTeamEditing()">Abbrechen</button> } @else { <button class="small" type="button" (click)="startTeamEditing(team)">Bearbeiten</button><button class="small" [class.danger]="team.isActive" [class.reactivate]="!team.isActive" type="button" (click)="toggleTeam(team)" [disabled]="isSaving() || isReadOnly()">{{ team.isActive ? 'Deaktivieren' : 'Reaktivieren' }}</button> }</td>
             </tr>
           } @empty { <tr><td colspan="4" class="empty">Keine Teams vorhanden.</td></tr> }
         </tbody>
@@ -43,9 +65,12 @@
       <label>Bezeichnung <input name="savingReasonName" [(ngModel)]="savingReasonName" maxlength="300" placeholder="z. B. Vertragsoptimierung" required /></label>
       <button class="primary" type="submit" [disabled]="isSaving() || isReadOnly()">Einspargrund anlegen</button>
     </form>
+    <label class="search-field">Suche
+      <input name="savingReasonSearch" [(ngModel)]="savingReasonSearch" placeholder="Einspargrund suchen" />
+    </label>
     <div class="table-wrapper"><table><thead><tr><th>Bezeichnung</th><th>Status</th><th>Aktionen</th></tr></thead><tbody>
-      @for (reason of savingReasons(); track reason.id) {
-        <tr><td>@if (editingReasonId() === reason.id) { <input name="editSavingReasonName" [(ngModel)]="editSavingReasonName" maxlength="300" /> } @else { <strong>{{ reason.name }}</strong> }</td><td><span class="status" [class.inactive]="!reason.isActive">{{ reason.isActive ? 'Aktiv' : 'Inaktiv' }}</span></td><td class="actions">@if (editingReasonId() === reason.id) { <button class="small primary" type="button" (click)="updateSavingReason(reason)" [disabled]="isSaving()">Speichern</button><button class="small" type="button" (click)="cancelReasonEditing()">Abbrechen</button> } @else { <button class="small" type="button" (click)="startReasonEditing(reason)">Bearbeiten</button><button class="small danger" type="button" (click)="deleteSavingReason(reason)" [disabled]="isSaving() || isReadOnly()">Löschen</button> }</td></tr>
+      @for (reason of visibleSavingReasons(); track reason.id) {
+        <tr><td>@if (editingReasonId() === reason.id) { <input name="editSavingReasonName" [(ngModel)]="editSavingReasonName" maxlength="300" /> } @else { <strong>{{ reason.name }}</strong> }</td><td><span class="status" [class.inactive]="!reason.isActive">{{ reason.isActive ? 'Aktiv' : 'Inaktiv' }}</span></td><td class="actions">@if (editingReasonId() === reason.id) { <button class="small primary" type="button" (click)="updateSavingReason(reason)" [disabled]="isSaving()">Speichern</button><button class="small" type="button" (click)="cancelReasonEditing()">Abbrechen</button> } @else { <button class="small" type="button" (click)="startReasonEditing(reason)">Bearbeiten</button><button class="small" [class.danger]="reason.isActive" [class.reactivate]="!reason.isActive" type="button" (click)="toggleSavingReason(reason)" [disabled]="isSaving() || isReadOnly()">{{ reason.isActive ? 'Deaktivieren' : 'Reaktivieren' }}</button> }</td></tr>
       } @empty { <tr><td colspan="3" class="empty">Keine Einspargründe vorhanden.</td></tr> }
     </tbody></table></div>
   </article>
@@ -56,9 +81,12 @@
       <label>Produktgruppe <input name="productGroupValue" [(ngModel)]="productGroupValue" maxlength="500" placeholder="z. B. Hilfsmittel / PG 18" required /></label>
       <button class="primary" type="submit" [disabled]="isSaving() || isReadOnly()">Produktgruppe anlegen</button>
     </form>
+    <label class="search-field">Suche
+      <input name="productGroupSearch" [(ngModel)]="productGroupSearch" placeholder="Produktgruppe suchen" />
+    </label>
     <div class="table-wrapper"><table><thead><tr><th>Wert</th><th>Status</th><th>Aktionen</th></tr></thead><tbody>
-      @for (group of productGroups(); track group.id) {
-        <tr><td>@if (editingProductGroupId() === group.id) { <input name="editProductGroupValue" [(ngModel)]="editProductGroupValue" maxlength="500" /> } @else { <strong>{{ group.displayValue }}</strong> }</td><td><span class="status" [class.inactive]="!group.isActive">{{ group.isActive ? 'Aktiv' : 'Inaktiv' }}</span></td><td class="actions">@if (editingProductGroupId() === group.id) { <button class="small primary" type="button" (click)="updateProductGroup(group)" [disabled]="isSaving()">Speichern</button><button class="small" type="button" (click)="cancelProductGroupEditing()">Abbrechen</button> } @else { <button class="small" type="button" (click)="startProductGroupEditing(group)">Bearbeiten</button><button class="small danger" type="button" (click)="deleteProductGroup(group)" [disabled]="isSaving() || isReadOnly()">Löschen</button> }</td></tr>
+      @for (group of visibleProductGroups(); track group.id) {
+        <tr><td>@if (editingProductGroupId() === group.id) { <input name="editProductGroupValue" [(ngModel)]="editProductGroupValue" maxlength="500" /> } @else { <strong>{{ group.displayValue }}</strong> }</td><td><span class="status" [class.inactive]="!group.isActive">{{ group.isActive ? 'Aktiv' : 'Inaktiv' }}</span></td><td class="actions">@if (editingProductGroupId() === group.id) { <button class="small primary" type="button" (click)="updateProductGroup(group)" [disabled]="isSaving()">Speichern</button><button class="small" type="button" (click)="cancelProductGroupEditing()">Abbrechen</button> } @else { <button class="small" type="button" (click)="startProductGroupEditing(group)">Bearbeiten</button><button class="small" [class.danger]="group.isActive" [class.reactivate]="!group.isActive" type="button" (click)="toggleProductGroup(group)" [disabled]="isSaving() || isReadOnly()">{{ group.isActive ? 'Deaktivieren' : 'Reaktivieren' }}</button> }</td></tr>
       } @empty { <tr><td colspan="3" class="empty">Keine Produktgruppen vorhanden.</td></tr> }
     </tbody></table></div>
   </article>

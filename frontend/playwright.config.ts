@@ -2,13 +2,17 @@ import { defineConfig, devices } from '@playwright/test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const startServers = process.env['HIMIFLOW_E2E_START_SERVERS'] === '1';
 const dotnetCommand = process.env['HIMIFLOW_DOTNET'] ?? 'dotnet';
 const apiPort = 55281;
 const frontendPort = 55280;
-const runtimeDirectory = path.join(os.tmpdir(), 'HimiFlow-playwright');
+const runtimeDirectory = path.join(os.tmpdir(), `HimiFlow-playwright-${crypto.randomUUID()}`);
 const databasePath = path.join(runtimeDirectory, 'e2e.db');
+const backendProject = process.env['HIMIFLOW_E2E_BACKEND_PROJECT'] ?? path.resolve(__dirname, '../backend/Einsparungs.Api');
+const frontendDirectory = process.env['HIMIFLOW_E2E_FRONTEND_DIR'] ?? path.resolve(__dirname);
+const apiAssembly = process.env['HIMIFLOW_E2E_API_DLL'];
 fs.mkdirSync(runtimeDirectory, { recursive: true });
 
 export default defineConfig({
@@ -27,8 +31,10 @@ export default defineConfig({
   webServer: startServers
     ? [
         {
-          command: `"${dotnetCommand}" run --project ../backend/Einsparungs.Api --no-launch-profile --urls http://127.0.0.1:${apiPort}`,
-          cwd: path.resolve(__dirname),
+          command: apiAssembly
+            ? `"${dotnetCommand}" "${apiAssembly}" --urls http://127.0.0.1:${apiPort}`
+            : `"${dotnetCommand}" run --project "${backendProject}" --no-launch-profile --urls http://127.0.0.1:${apiPort}`,
+          cwd: frontendDirectory,
           url: `http://127.0.0.1:${apiPort}/api/health/live`,
           timeout: 120_000,
           reuseExistingServer: false,
@@ -42,15 +48,15 @@ export default defineConfig({
             Database__SeedDemoReferenceData: 'true',
             InitialAdmin__UserName: 'e2e.admin',
             InitialAdmin__DisplayName: 'E2E SystemAdmin',
-            InitialAdmin__TemporaryPassword: 'E2e!Start9Password#2026',
+            InitialAdmin__TemporaryPassword: 'T9!vK2@pL7#xR4$q',
             Security__RequireHttps: 'false',
             License__EnforcementEnabled: 'false',
             Backup__AutomaticEnabled: 'false'
           }
         },
         {
-          command: `npm run start -- --host 127.0.0.1 --port ${frontendPort}`,
-          cwd: path.resolve(__dirname),
+          command: `npm run start -- --host 127.0.0.1 --port ${frontendPort} --proxy-config proxy.e2e.conf.json`,
+          cwd: frontendDirectory,
           url: `http://127.0.0.1:${frontendPort}/login`,
           timeout: 120_000,
           reuseExistingServer: false

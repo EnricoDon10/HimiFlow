@@ -1,0 +1,8 @@
+{
+  "/api": {
+    "target": "http://127.0.0.1:55281",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "warn"
+  }
+}

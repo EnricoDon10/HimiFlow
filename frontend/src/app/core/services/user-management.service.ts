@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { API_CONFIG } from '../config/api.config';
 import {
   ChangeUserRoleRequest,
+  ChangeUserTeamRequest,
   CreateUserRequest,
   CreateUserResponse,
   ResetPasswordResponse,
@@ -35,6 +36,10 @@ export class UserManagementService {
 
   changeRole(id: string, request: ChangeUserRoleRequest): Observable<UserManagementUser> {
     return this.http.put<UserManagementUser>(`${this.resourceUrl}/${id}/role`, request);
+  }
+
+  changeTeam(id: string, request: ChangeUserTeamRequest): Observable<UserManagementUser> {
+    return this.http.put<UserManagementUser>(`${this.resourceUrl}/${id}/team`, request);
   }
 
   deactivate(id: string): Observable<void> {

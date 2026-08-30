@@ -20,6 +20,10 @@ export interface ChangeUserRoleRequest {
   roleName: string;
 }
 
+export interface ChangeUserTeamRequest {
+  teamId: number;
+}
+
 export interface CreateUserResponse {
   user: UserManagementUser;
   temporaryPassword: string;

@@ -10,6 +10,15 @@ import {
 import { LicenseService } from '../../../core/services/license.service';
 import { MasterDataService } from '../../../core/services/master-data.service';
 
+type MasterDataType = 'Team' | 'SavingReason' | 'ProductGroup';
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
+
+interface ReactivationCandidate {
+  masterDataType: MasterDataType;
+  id: number;
+  displayName: string;
+}
+
 @Component({
   selector: 'app-master-data',
   standalone: true,
@@ -28,6 +37,7 @@ export class MasterDataComponent implements OnInit {
   readonly editingTeamId = signal<number | null>(null);
   readonly editingReasonId = signal<number | null>(null);
   readonly editingProductGroupId = signal<number | null>(null);
+  readonly reactivationCandidate = signal<ReactivationCandidate | null>(null);
 
   organizationUnit = '';
   editOrganizationUnit = '';
@@ -35,6 +45,10 @@ export class MasterDataComponent implements OnInit {
   editSavingReasonName = '';
   productGroupValue = '';
   editProductGroupValue = '';
+  statusFilter: StatusFilter = 'ALL';
+  teamSearch = '';
+  savingReasonSearch = '';
+  productGroupSearch = '';
 
   constructor(
     private readonly masterDataService: MasterDataService,
@@ -75,6 +89,18 @@ export class MasterDataComponent implements OnInit {
     });
   }
 
+  visibleTeams(): Team[] {
+    return this.teams().filter((team) => this.matchesFilter(team.isActive, team.displayName, this.teamSearch));
+  }
+
+  visibleSavingReasons(): SavingReason[] {
+    return this.savingReasons().filter((reason) => this.matchesFilter(reason.isActive, reason.name, this.savingReasonSearch));
+  }
+
+  visibleProductGroups(): ProductGroup[] {
+    return this.productGroups().filter((group) => this.matchesFilter(group.isActive, group.displayValue, this.productGroupSearch));
+  }
+
   startTeamEditing(team: Team): void {
     this.editingTeamId.set(team.id);
     this.editOrganizationUnit = team.displayName;
@@ -95,15 +121,20 @@ export class MasterDataComponent implements OnInit {
     });
   }
 
-  deleteTeam(team: Team): void {
-    if (!this.confirmDelete(`Organisationseinheit "${team.displayName}"`)) {
+  toggleTeam(team: Team): void {
+    const action = team.isActive ? 'deaktivieren' : 'reaktivieren';
+    if (!confirm(this.confirmStatusMessage(`Organisationseinheit "${team.displayName}"`, action))) {
       return;
     }
 
     this.runSave(
-      () => this.masterDataService.deleteTeam(team.id),
-      'Organisationseinheit wurde gelöscht.',
-      () => this.teams.set(this.teams().filter((item) => item.id !== team.id))
+      () => team.isActive
+        ? this.masterDataService.deactivateTeam(team.id)
+        : this.masterDataService.activateTeam(team.id),
+      team.isActive
+        ? 'Organisationseinheit wurde deaktiviert. Sie steht nicht mehr für neue Einsparungen zur Verfügung.'
+        : 'Organisationseinheit wurde reaktiviert und steht wieder für neue Einsparungen zur Verfügung.',
+      (updated) => this.replaceTeam(updated)
     );
   }
 
@@ -134,15 +165,20 @@ export class MasterDataComponent implements OnInit {
       });
   }
 
-  deleteSavingReason(reason: SavingReason): void {
-    if (!this.confirmDelete(`Einspargrund "${reason.name}"`)) {
+  toggleSavingReason(reason: SavingReason): void {
+    const action = reason.isActive ? 'deaktivieren' : 'reaktivieren';
+    if (!confirm(this.confirmStatusMessage(`Einspargrund "${reason.name}"`, action))) {
       return;
     }
 
     this.runSave(
-      () => this.masterDataService.deleteSavingReason(reason.id),
-      'Einspargrund wurde gelöscht.',
-      () => this.savingReasons.set(this.savingReasons().filter((item) => item.id !== reason.id))
+      () => reason.isActive
+        ? this.masterDataService.deactivateSavingReason(reason.id)
+        : this.masterDataService.activateSavingReason(reason.id),
+      reason.isActive
+        ? 'Einspargrund wurde deaktiviert. Er steht nicht mehr für neue Einsparungen zur Verfügung.'
+        : 'Einspargrund wurde reaktiviert und steht wieder für neue Einsparungen zur Verfügung.',
+      (updated) => this.replaceSavingReason(updated)
     );
   }
 
@@ -173,16 +209,50 @@ export class MasterDataComponent implements OnInit {
       });
   }
 
-  deleteProductGroup(group: ProductGroup): void {
-    if (!this.confirmDelete(`Produktgruppe "${group.displayValue}"`)) {
+  toggleProductGroup(group: ProductGroup): void {
+    const action = group.isActive ? 'deaktivieren' : 'reaktivieren';
+    if (!confirm(this.confirmStatusMessage(`Produktgruppe "${group.displayValue}"`, action))) {
       return;
     }
 
     this.runSave(
-      () => this.masterDataService.deleteProductGroup(group.id),
-      'Produktgruppe wurde gelöscht.',
-      () => this.productGroups.set(this.productGroups().filter((item) => item.id !== group.id))
+      () => group.isActive
+        ? this.masterDataService.deactivateProductGroup(group.id)
+        : this.masterDataService.activateProductGroup(group.id),
+      group.isActive
+        ? 'Produktgruppe wurde deaktiviert. Sie steht nicht mehr für neue Einsparungen zur Verfügung.'
+        : 'Produktgruppe wurde reaktiviert und steht wieder für neue Einsparungen zur Verfügung.',
+      (updated) => this.replaceProductGroup(updated)
     );
+  }
+
+  reactivatePending(): void {
+    const candidate = this.reactivationCandidate();
+    if (!candidate) {
+      return;
+    }
+
+    const success = `${candidate.displayName} wurde reaktiviert und steht wieder für neue Einsparungen zur Verfügung.`;
+    if (candidate.masterDataType === 'Team') {
+      this.runSave(() => this.masterDataService.activateTeam(candidate.id), success, updated => {
+        this.replaceTeam(updated);
+        this.reactivationCandidate.set(null);
+      });
+    } else if (candidate.masterDataType === 'SavingReason') {
+      this.runSave(() => this.masterDataService.activateSavingReason(candidate.id), success, updated => {
+        this.replaceSavingReason(updated);
+        this.reactivationCandidate.set(null);
+      });
+    } else {
+      this.runSave(() => this.masterDataService.activateProductGroup(candidate.id), success, updated => {
+        this.replaceProductGroup(updated);
+        this.reactivationCandidate.set(null);
+      });
+    }
+  }
+
+  clearReactivationCandidate(): void {
+    this.reactivationCandidate.set(null);
   }
 
   isReadOnly(): boolean {
@@ -210,6 +280,18 @@ export class MasterDataComponent implements OnInit {
     });
   }
 
+  private replaceTeam(team: Team): void {
+    this.teams.set(this.sortTeams(this.teams().map((item) => item.id === team.id ? team : item)));
+  }
+
+  private replaceSavingReason(reason: SavingReason): void {
+    this.savingReasons.set(this.sortReasons(this.savingReasons().map((item) => item.id === reason.id ? reason : item)));
+  }
+
+  private replaceProductGroup(group: ProductGroup): void {
+    this.productGroups.set(this.sortProductGroups(this.productGroups().map((item) => item.id === group.id ? group : item)));
+  }
+
   private sortTeams(items: Team[]): Team[] {
     return [...items].sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'));
   }
@@ -227,15 +309,32 @@ export class MasterDataComponent implements OnInit {
     this.successMessage.set(null);
   }
 
-  private confirmDelete(label: string): boolean {
-    return confirm(`${label} wirklich löschen? Die historische Verwendung bleibt erhalten.`);
+  private confirmStatusMessage(label: string, action: string): string {
+    return action === 'deaktivieren'
+      ? `${label} wirklich deaktivieren? Der Wert kann anschließend nicht mehr für neue Einsparungen ausgewählt werden. Historische Datensätze bleiben unverändert.`
+      : `${label} wirklich reaktivieren? Der Wert steht anschließend wieder für neue Einsparungen zur Verfügung.`;
+  }
+
+  private matchesFilter(isActive: boolean, value: string, search: string): boolean {
+    const statusMatches = this.statusFilter === 'ALL'
+      || (this.statusFilter === 'ACTIVE' && isActive)
+      || (this.statusFilter === 'INACTIVE' && !isActive);
+    return statusMatches && value.toLocaleLowerCase('de-DE').includes(search.trim().toLocaleLowerCase('de-DE'));
   }
 
   private extractErrorMessage(error: unknown, fallback: string): string {
     if (typeof error === 'object' && error !== null && 'error' in error) {
-      const body = (error as { error?: { code?: string; detail?: string; errors?: string[]; activeUserCount?: number } }).error;
+      const body = (error as { error?: { code?: string; detail?: string; errors?: string[]; activeUserCount?: number; masterDataType?: MasterDataType; id?: number; displayName?: string } }).error;
       if (body?.code === 'TEAM_HAS_ACTIVE_USERS') {
-        return `Organisationseinheit kann nicht gelöscht werden: ${body.activeUserCount ?? 'Noch'} aktive Benutzer müssen zuerst verschoben oder deaktiviert werden.`;
+        return `Organisationseinheit kann nicht deaktiviert werden: ${body.activeUserCount ?? 'Noch'} aktive Benutzer müssen zuerst verschoben, einer anderen Organisationseinheit zugeordnet oder deaktiviert werden.`;
+      }
+      if (body?.code === 'MASTER_DATA_INACTIVE_EXISTS' && body.masterDataType && body.id && body.displayName) {
+        this.reactivationCandidate.set({
+          masterDataType: body.masterDataType,
+          id: body.id,
+          displayName: body.displayName
+        });
+        return `${body.displayName} existiert bereits, ist aber deaktiviert. Sie können den Wert wieder aktivieren.`;
       }
       if (body?.errors?.length) {
         return body.errors.join(' ');

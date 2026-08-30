@@ -71,10 +71,15 @@ export const routes: Routes = [
         loadComponent: () => import('./features/admin/license/license.component').then((m) => m.LicenseComponent)
       },
       {
-        path: 'admin/product-groups',
+        path: 'admin/backup-recovery',
         canActivate: [roleGuard],
-        data: { roles: ['FachAdmin'] },
-        loadComponent: () => import('./features/admin/product-groups/product-groups.component').then((m) => m.ProductGroupsComponent)
+        data: { roles: ['SystemAdmin'] },
+        loadComponent: () => import('./features/admin/backup-recovery/backup-recovery.component').then((m) => m.BackupRecoveryComponent)
+      },
+      {
+        path: 'admin/product-groups',
+        pathMatch: 'full',
+        redirectTo: 'admin/master-data'
       },
       {
         path: 'admin/master-data',

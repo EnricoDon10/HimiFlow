@@ -100,6 +100,8 @@ Relevante Gruppen:
 - `Security:*`, `ReverseProxy:*`, `Cors:AllowedOrigins`
 - `Backup:*`, `Identity:*`, `Legal:*`
 
+Die Ausstellung und Übergabe signierter Jahreslizenzen ist im [Lizenzgenerierungs- und Übergabekonzept](lizenzgenerierung-und-uebergabe.md) beschrieben. Die Anbieterwerkzeuge `scripts/New-HimiFlowLicenseKeyPair.ps1` und `scripts/New-HimiFlowLicense.ps1` werden ausschließlich außerhalb der Kundeninstallation verwendet.
+
 Es gibt aktuell keinen externen KI-Dienst und deshalb keinen GPT-Key. Falls später ein KI-Dienst ergänzt wird, benötigt er eine eigene Datenschutz-, Vertrags-, Berechtigungs- und Secret-Management-Freigabe.
 
 ## 8. Datenbankprovider

@@ -9,7 +9,7 @@
 
 > **Phase F:** Die lokale Edition ist technisch abgenommen und als kontrollierter MVP-/Pilotbetrieb bewertet. Der vollständige Reifegrad und die bewussten Grenzen stehen im [Phase-F-Reifegrad- und Abschlussbericht](docs/phase-f-reifegrad-abschlussbericht.md).
 
-> **Reifegrad 4:** Der maßgebliche aktuelle Stand ist im [Production-Gap-Abschlussbericht](docs/production-gap-abschlussbericht.md) dokumentiert. Maßgebliche Detailunterlagen: [Backend-Betrieb](docs/backend-betriebsdokumentation.md), [Login/Passwort](docs/login-und-passwortkonzept.md), [Backup/Restore](docs/backup-und-restore-konzept.md), [Datenschutz/Berechtigungen](docs/datenschutz-und-berechtigungskonzept.md) und [Recht/Vertrag](docs/rechtliche-und-vertragliche-checkliste.md).
+> **Reifegrad 4:** Der maßgebliche aktuelle Stand ist im [Production-Gap-Abschlussbericht](docs/production-gap-abschlussbericht.md) dokumentiert. Maßgebliche Detailunterlagen: [Backend-Betrieb](docs/backend-betriebsdokumentation.md), [Login/Passwort](docs/login-und-passwortkonzept.md), [Lizenzgenerierung und Übergabe](docs/lizenzgenerierung-und-uebergabe.md), [Backup/Restore](docs/backup-und-restore-konzept.md), [Datenschutz/Berechtigungen](docs/datenschutz-und-berechtigungskonzept.md) und [Recht/Vertrag](docs/rechtliche-und-vertragliche-checkliste.md).
 
 ## Lokaler Start unter Windows
 

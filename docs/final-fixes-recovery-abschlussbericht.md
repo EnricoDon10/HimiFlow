@@ -10,7 +10,7 @@ Stand: 30.08.2026 · Local Edition auf SQLite
 - Benutzeranlage und Reaktivierung akzeptieren nur aktive Organisationseinheiten.
 - Pagination bleibt serverseitig auf 1–100 begrenzt; die UI bietet nur 25/50/100 und keinen „Alle“-Modus.
 - DELETE-Concurrency liefert `409 CONCURRENCY_CONFLICT` statt einer 500-Antwort.
-- Backup-Status, manuelles Backup, serverseitige Prüfung und Restore-Vorbereitung stehen im SystemAdmin-Bereich bereit. Es gibt keinen Live-Database-Swap und keinen Browser-Download.
+- Backup-Status und manuelles Backup stehen im SystemAdmin-Bereich bereit. Die Wiederherstellung bleibt ein kontrollierter Offline-/Wartungsmodus; es gibt keinen Live-Database-Swap und keinen Browser-Download.
 - Restore-Skript akzeptiert auch eine fehlende Ziel-Datenbank, validiert temporär und nach dem Austausch, behandelt WAL/SHM, erstellt Safety-Backups und Recovery-Logs.
 - Disaster-Recovery-Anleitung für fachliche Fehlbedienung, beschädigte/fehlende Datenbank und fehlendes Produktiv-Backup erstellt.
 - Spreadsheet-/CSV-Formelneutralisierung berücksichtigt Formelzeichen nach führenden Leerzeichen, Tab, CR und LF.

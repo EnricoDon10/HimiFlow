@@ -51,7 +51,6 @@ public sealed class MasterDataController : ControllerBase
     {
         var teams = await db.Teams
             .AsNoTracking()
-            .Where(team => team.IsActive)
             .OrderBy(team => team.Code)
             .Select(team => new TeamResponse(
                 team.Id,
@@ -72,6 +71,12 @@ public sealed class MasterDataController : ControllerBase
         CancellationToken cancellationToken)
     {
         var input = ResolveTeamInput(request, null);
+        var duplicateTeam = await FindTeamDuplicateAsync(input, null, cancellationToken);
+        if (duplicateTeam is not null && !duplicateTeam.IsActive)
+        {
+            return InactiveMasterDataExists("Team", duplicateTeam.Id, duplicateTeam.DisplayName);
+        }
+
         var errors = await ValidateTeamAsync(input, null, cancellationToken);
         if (errors.Count > 0)
         {
@@ -234,7 +239,6 @@ public sealed class MasterDataController : ControllerBase
     {
         var reasons = await db.SavingReasons
             .AsNoTracking()
-            .Where(reason => reason.IsActive)
             .OrderBy(reason => reason.Name)
             .Select(reason => new SavingReasonResponse(
                 reason.Id,
@@ -253,6 +257,13 @@ public sealed class MasterDataController : ControllerBase
         CancellationToken cancellationToken)
     {
         var name = request.Name?.Trim() ?? string.Empty;
+        var duplicateReason = await db.SavingReasons
+            .FirstOrDefaultAsync(reason => reason.Name.ToLower() == name.ToLower(), cancellationToken);
+        if (duplicateReason is not null && !duplicateReason.IsActive)
+        {
+            return InactiveMasterDataExists("SavingReason", duplicateReason.Id, duplicateReason.Name);
+        }
+
         var errors = await ValidateSavingReasonAsync(name, null, cancellationToken);
         if (errors.Count > 0)
         {
@@ -402,7 +413,6 @@ public sealed class MasterDataController : ControllerBase
     {
         var groups = await db.ProductGroups
             .AsNoTracking()
-            .Where(group => group.IsActive)
             .OrderBy(group => group.DisplayValue)
             .Select(group => new ProductGroupResponse(
                 group.Id,
@@ -421,6 +431,13 @@ public sealed class MasterDataController : ControllerBase
         CancellationToken cancellationToken)
     {
         var displayValue = request.DisplayValue?.Trim() ?? string.Empty;
+        var duplicateGroup = await db.ProductGroups
+            .FirstOrDefaultAsync(group => group.DisplayValue.ToLower() == displayValue.ToLower(), cancellationToken);
+        if (duplicateGroup is not null && !duplicateGroup.IsActive)
+        {
+            return InactiveMasterDataExists("ProductGroup", duplicateGroup.Id, duplicateGroup.DisplayValue);
+        }
+
         var errors = await ValidateProductGroupAsync(displayValue, null, cancellationToken);
         if (errors.Count > 0)
         {
@@ -543,6 +560,43 @@ public sealed class MasterDataController : ControllerBase
         }
 
         return NoContent();
+    }
+
+    private Task<Team?> FindTeamDuplicateAsync(
+        TeamInput input,
+        int? existingId,
+        CancellationToken cancellationToken)
+    {
+        return input.IsOrganizationUnit
+            ? db.Teams.FirstOrDefaultAsync(
+                team => team.DisplayName.ToLower() == input.DisplayName.ToLower()
+                    && (!existingId.HasValue || team.Id != existingId.Value),
+                cancellationToken)
+            : db.Teams.FirstOrDefaultAsync(
+                team => team.Code.ToLower() == input.Code.ToLower()
+                    && (!existingId.HasValue || team.Id != existingId.Value),
+                cancellationToken);
+    }
+
+    private ConflictObjectResult InactiveMasterDataExists(
+        string masterDataType,
+        int id,
+        string displayName)
+    {
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "Stammdatum ist bereits vorhanden, aber deaktiviert",
+            Detail = $"{displayName} existiert bereits, ist aber deaktiviert. Sie können den Wert wieder aktivieren.",
+            Instance = HttpContext.Request.Path
+        };
+        problem.Extensions["code"] = "MASTER_DATA_INACTIVE_EXISTS";
+        problem.Extensions["masterDataType"] = masterDataType;
+        problem.Extensions["id"] = id;
+        problem.Extensions["displayName"] = displayName;
+        problem.Extensions["status"] = "Inaktiv";
+        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+        return Conflict(problem);
     }
 
     private static TeamInput ResolveTeamInput(TeamSaveRequest request, Team? existingTeam)
@@ -739,9 +793,59 @@ public sealed class MasterDataController : ControllerBase
             ChangedAt = DateTime.UtcNow,
             OldValuesJson = oldValues is null ? null : JsonSerializer.Serialize(oldValues, JsonOptions),
             NewValuesJson = newValues is null ? null : JsonSerializer.Serialize(newValues, JsonOptions),
-            ChangedFieldsJson = JsonSerializer.Serialize(new[] { "name", "code", "displayValue", "displayName", "isActive" }, JsonOptions),
+            ChangedFieldsJson = DetermineChangedFieldsJson(oldValues, newValues),
             ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers.UserAgent.ToString()
         });
+    }
+
+    private static string DetermineChangedFieldsJson(object? oldValues, object? newValues)
+    {
+        if (oldValues is null && newValues is null)
+        {
+            return "[]";
+        }
+
+        using var oldDocument = oldValues is null
+            ? null
+            : JsonDocument.Parse(JsonSerializer.Serialize(oldValues, JsonOptions));
+        using var newDocument = newValues is null
+            ? null
+            : JsonDocument.Parse(JsonSerializer.Serialize(newValues, JsonOptions));
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        if (oldDocument is not null)
+        {
+            foreach (var property in oldDocument.RootElement.EnumerateObject())
+            {
+                names.Add(property.Name);
+            }
+        }
+        if (newDocument is not null)
+        {
+            foreach (var property in newDocument.RootElement.EnumerateObject())
+            {
+                names.Add(property.Name);
+            }
+        }
+
+        var changed = names
+            .Where(name => !JsonValuesEqual(
+                oldDocument?.RootElement.TryGetProperty(name, out var oldValue) == true ? oldValue : null,
+                newDocument?.RootElement.TryGetProperty(name, out var newValue) == true ? newValue : null))
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray();
+
+        return JsonSerializer.Serialize(changed, JsonOptions);
+    }
+
+    private static bool JsonValuesEqual(JsonElement? oldValue, JsonElement? newValue)
+    {
+        if (!oldValue.HasValue || !newValue.HasValue)
+        {
+            return !oldValue.HasValue && !newValue.HasValue;
+        }
+
+        return oldValue.Value.GetRawText() == newValue.Value.GetRawText();
     }
 }

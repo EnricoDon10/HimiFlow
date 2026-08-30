@@ -36,7 +36,7 @@ public sealed class OperationsController : ControllerBase
     [HttpGet("backups")]
     public ActionResult<IReadOnlyList<BackupResponse>> ListBackups()
     {
-        return Ok(backupService.List().Select(ToResponse).ToArray());
+        return Ok(backupService.List().Select(backup => ToResponse(backup)).ToArray());
     }
 
     [HttpPost("backups")]
@@ -63,16 +63,75 @@ public sealed class OperationsController : ControllerBase
         });
         await db.SaveChangesAsync(cancellationToken);
 
-        return Ok(ToResponse(backup));
+        return Ok(ToResponse(backup, "Gültig", DateTime.UtcNow));
     }
 
-    private static BackupResponse ToResponse(SqliteBackupService.BackupFile backup)
+    [HttpPost("backups/{fileName}/validate")]
+    public async Task<ActionResult<BackupValidationResponse>> ValidateBackup(
+        string fileName,
+        CancellationToken cancellationToken)
+    {
+        var validation = await backupService.ValidateNamedAsync(fileName, cancellationToken);
+        var checkedAt = DateTime.UtcNow;
+        await WriteRecoveryAuditAsync(
+            validation.IsValid ? "BackupValidated" : "BackupValidationFailed",
+            fileName,
+            new { validation.IsValid, validation.Result, CheckedAtUtc = checkedAt },
+            cancellationToken);
+
+        return Ok(new BackupValidationResponse(fileName, validation.IsValid, validation.Result, checkedAt));
+    }
+
+    [HttpPost("backups/{fileName}/prepare-restore")]
+    public async Task<ActionResult<RestorePreparationResponse>> PrepareRestore(
+        string fileName,
+        CancellationToken cancellationToken)
+    {
+        var validation = await backupService.ValidateNamedAsync(fileName, cancellationToken);
+        var checkedAt = DateTime.UtcNow;
+        var message = validation.IsValid
+            ? "Backup ist gültig. Die Wiederherstellung erfolgt ausschließlich im Wartungsmodus; HimiFlow muss dafür vollständig beendet werden."
+            : "Das ausgewählte Backup ist ungültig und darf nicht wiederhergestellt werden.";
+        await WriteRecoveryAuditAsync(
+            validation.IsValid ? "RestorePrepared" : "RestorePreparationRejected",
+            fileName,
+            new { validation.IsValid, validation.Result, CheckedAtUtc = checkedAt },
+            cancellationToken);
+
+        return Ok(new RestorePreparationResponse(fileName, validation.IsValid, message, checkedAt));
+    }
+
+    private static BackupResponse ToResponse(
+        SqliteBackupService.BackupFile backup,
+        string integrityStatus = "Nicht geprüft",
+        DateTime? lastValidatedAtUtc = null)
     {
         return new BackupResponse(
             backup.FileName,
             backup.SizeBytes,
             backup.CreatedAtUtc,
-            Path.Combine("backups", backup.FileName).Replace('\\', '/'));
+            integrityStatus,
+            lastValidatedAtUtc);
+    }
+
+    private async Task WriteRecoveryAuditAsync(
+        string action,
+        string fileName,
+        object values,
+        CancellationToken cancellationToken)
+    {
+        db.AuditLogs.Add(new AuditLog
+        {
+            EntityName = "Database",
+            EntityId = "sqlite",
+            Action = action,
+            ChangedByUserId = GetCurrentUserId(),
+            ChangedAt = DateTime.UtcNow,
+            NewValuesJson = System.Text.Json.JsonSerializer.Serialize(new { fileName, values }),
+            ClientIp = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            UserAgent = Request.Headers.UserAgent.ToString()
+        });
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private Guid GetCurrentUserId()

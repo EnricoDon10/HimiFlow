@@ -101,6 +101,31 @@ public sealed class SqliteBackupService
             .ToArray();
     }
 
+    public async Task<BackupValidationResult> ValidateNamedAsync(
+        string fileName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(fileName) ||
+            !string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal) ||
+            fileName.Contains(Path.DirectorySeparatorChar) ||
+            fileName.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return new BackupValidationResult(false, "Ungültiger Backup-Dateiname.");
+        }
+
+        var path = Path.Combine(ResolveBackupDirectory(), fileName);
+        var fullPath = Path.GetFullPath(path);
+        var backupDirectory = Path.GetFullPath(ResolveBackupDirectory())
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+            + Path.DirectorySeparatorChar;
+        if (!fullPath.StartsWith(backupDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            return new BackupValidationResult(false, "Ungültiger Backup-Pfad.");
+        }
+
+        return await ValidateAsync(fullPath, cancellationToken);
+    }
+
     public async Task<BackupValidationResult> ValidateAsync(
         string backupPath,
         CancellationToken cancellationToken = default)

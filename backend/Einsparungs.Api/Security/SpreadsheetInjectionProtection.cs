@@ -8,7 +8,8 @@ public static class SpreadsheetInjectionProtection
     public static string NeutralizeText(string? value)
     {
         var text = value ?? string.Empty;
-        return text.Length > 0 && FormulaPrefixes.Contains(text[0])
+        var formulaCandidate = text.TrimStart(' ', '\t', '\r', '\n');
+        return formulaCandidate.Length > 0 && FormulaPrefixes.Contains(formulaCandidate[0])
             ? $"'{text}"
             : text;
     }

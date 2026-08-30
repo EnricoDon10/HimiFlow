@@ -32,6 +32,11 @@ public class SavingsController : ControllerBase
     public async Task<ActionResult<PagedResponse<SavingsEntryResponse>>> GetMySavings(
         [FromQuery] SavingsListQuery request)
     {
+        if (!IsValidPagination(request))
+        {
+            return InvalidPagination();
+        }
+
         var currentUserId = GetCurrentUserId();
 
         var query = SavingsResponseQuery()
@@ -39,20 +44,15 @@ public class SavingsController : ControllerBase
         query = ApplyFilters(query, request);
 
         var totalCount = await query.CountAsync();
-        var effectivePageSize = request.PageSize == 0
-            ? Math.Max(totalCount, 1)
-            : request.PageSize;
         var totalPages = totalCount == 0
             ? 0
-            : request.PageSize == 0
-                ? 1
-                : (int)Math.Ceiling(totalCount / (double)effectivePageSize);
+            : (int)Math.Ceiling(totalCount / (double)request.PageSize);
         var entries = await query
             .OrderByDescending(x => x.Month)
             .ThenByDescending(x => x.CreatedAt)
             .ThenByDescending(x => x.Id)
-            .Skip((request.Page - 1) * effectivePageSize)
-            .Take(effectivePageSize)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
             .ToListAsync();
 
         return Ok(new PagedResponse<SavingsEntryResponse>(
@@ -68,25 +68,25 @@ public class SavingsController : ControllerBase
     public async Task<ActionResult<PagedResponse<SavingsEntryResponse>>> GetAllSavings(
         [FromQuery] SavingsListQuery request)
     {
+        if (!IsValidPagination(request))
+        {
+            return InvalidPagination();
+        }
+
         var query = SavingsResponseQuery();
 
         query = ApplyFilters(query, request);
 
         var totalCount = await query.CountAsync();
-        var effectivePageSize = request.PageSize == 0
-            ? Math.Max(totalCount, 1)
-            : request.PageSize;
         var totalPages = totalCount == 0
             ? 0
-            : request.PageSize == 0
-                ? 1
-                : (int)Math.Ceiling(totalCount / (double)effectivePageSize);
+            : (int)Math.Ceiling(totalCount / (double)request.PageSize);
         var entries = await query
             .OrderByDescending(x => x.Month)
             .ThenByDescending(x => x.CreatedAt)
             .ThenByDescending(x => x.Id)
-            .Skip((request.Page - 1) * effectivePageSize)
-            .Take(effectivePageSize)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
             .ToListAsync();
 
         return Ok(new PagedResponse<SavingsEntryResponse>(
@@ -355,7 +355,14 @@ public class SavingsController : ControllerBase
             newValues: await CreateAuditSnapshotAsync(entry)
         );
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return ConcurrencyConflict();
+        }
 
         return NoContent();
     }
@@ -393,6 +400,15 @@ public class SavingsController : ControllerBase
 
         return query;
     }
+
+    private static bool IsValidPagination(SavingsListQuery request) =>
+        request.Page is >= 1 and <= 1_000_000 && request.PageSize is >= 1 and <= 100;
+
+    private BadRequestObjectResult InvalidPagination() => BadRequest(new
+    {
+        code = "INVALID_PAGINATION",
+        errors = new[] { "Page muss mindestens 1 und PageSize muss zwischen 1 und 100 liegen." }
+    });
 
     private IQueryable<SavingsEntryResponse> SavingsResponseQuery()
     {

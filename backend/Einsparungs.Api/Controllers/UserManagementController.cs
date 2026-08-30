@@ -215,6 +215,12 @@ public sealed class UserManagementController : ControllerBase
             });
         }
 
+        if (roleName != ApplicationRoles.SystemAdmin && user.TeamId is not null &&
+            !await db.Teams.AnyAsync(team => team.Id == user.TeamId.Value && team.IsActive))
+        {
+            return UserTeamInactive(user.TeamId);
+        }
+
         var targetRole = await db.Roles.SingleAsync(role => role.Name == roleName);
         db.UserRoles.RemoveRange(user.UserRoles);
         db.UserRoles.Add(new AppUserRole { AppUserId = user.Id, AppRoleId = targetRole.Id });
@@ -232,6 +238,60 @@ public sealed class UserManagementController : ControllerBase
             user.UserName,
             From = currentRole,
             To = roleName
+        });
+        await db.SaveChangesAsync();
+
+        var updatedUser = await UserQuery().SingleAsync(item => item.Id == id);
+        return Ok(ToResponse(updatedUser));
+    }
+
+    [HttpPut("{id:guid}/team")]
+    public async Task<ActionResult<UserManagementUserResponse>> ChangeTeam(
+        Guid id,
+        ChangeUserTeamRequest request)
+    {
+        var user = await UserQuery().SingleOrDefaultAsync(item => item.Id == id);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var roleName = user.UserRoles.Select(userRole => userRole.AppRole.Name).SingleOrDefault();
+        if (roleName == ApplicationRoles.SystemAdmin)
+        {
+            return BadRequest(new { errors = new[] { "Ein System-Admin benötigt keine Organisationseinheit." } });
+        }
+
+        var targetTeam = await db.Teams.SingleOrDefaultAsync(
+            team => team.Id == request.TeamId && team.IsActive);
+        if (targetTeam is null)
+        {
+            return UserTeamInactive(request.TeamId);
+        }
+
+        var oldTeam = user.TeamId.HasValue
+            ? await db.Teams.AsNoTracking().SingleOrDefaultAsync(team => team.Id == user.TeamId.Value)
+            : null;
+        if (user.TeamId == targetTeam.Id)
+        {
+            return Ok(ToResponse(user));
+        }
+
+        user.TeamId = targetTeam.Id;
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return BadRequest(new { errors = updateResult.Errors.Select(error => error.Description).ToArray() });
+        }
+
+        await userManager.UpdateSecurityStampAsync(user);
+        AddAdminAudit(user.Id, "TeamChanged", new
+        {
+            user.UserName,
+            OldTeamId = oldTeam?.Id,
+            OldTeam = oldTeam?.DisplayName,
+            NewTeamId = targetTeam.Id,
+            NewTeam = targetTeam.DisplayName
         });
         await db.SaveChangesAsync();
 
@@ -294,6 +354,21 @@ public sealed class UserManagementController : ControllerBase
             if (!seatLimit.SlotAvailable)
             {
                 return LicenseLimitConflict(seatLimit);
+            }
+
+            var roleName = await db.UserRoles
+                .Where(userRole => userRole.AppUserId == user.Id)
+                .Select(userRole => userRole.AppRole.Name)
+                .SingleOrDefaultAsync();
+            if (roleName != ApplicationRoles.SystemAdmin)
+            {
+                var team = user.TeamId.HasValue
+                    ? await db.Teams.SingleOrDefaultAsync(item => item.Id == user.TeamId.Value)
+                    : null;
+                if (team is null || !team.IsActive)
+                {
+                    return UserTeamInactive(user.TeamId);
+                }
             }
         }
 
@@ -390,9 +465,9 @@ public sealed class UserManagementController : ControllerBase
             {
                 errors.Add("Team ist für diese Rolle erforderlich.");
             }
-            else if (!await db.Teams.AnyAsync(team => team.Id == request.TeamId.Value))
+            else if (!await db.Teams.AnyAsync(team => team.Id == request.TeamId.Value && team.IsActive))
             {
-                errors.Add("Das ausgewählte Team existiert nicht.");
+                errors.Add("Die ausgewählte Organisationseinheit existiert nicht oder ist deaktiviert.");
             }
         }
 
@@ -469,6 +544,21 @@ public sealed class UserManagementController : ControllerBase
         return Conflict(problem);
     }
 
+    private ConflictObjectResult UserTeamInactive(int? teamId)
+    {
+        var problem = new ProblemDetails
+        {
+            Status = StatusCodes.Status409Conflict,
+            Title = "Organisationseinheit ist deaktiviert",
+            Detail = "Der Benutzer kann erst aktiviert oder zugeordnet werden, wenn eine aktive Organisationseinheit ausgewählt wurde.",
+            Instance = HttpContext.Request.Path
+        };
+        problem.Extensions["code"] = "USER_TEAM_INACTIVE";
+        problem.Extensions["teamId"] = teamId;
+        problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+        return Conflict(problem);
+    }
+
     private void AddAdminAudit(Guid entityId, string action, object details)
     {
         var changedByUserId = GetCurrentUserId();
@@ -498,6 +588,8 @@ public sealed record CreateUserRequest(
     int? TeamId);
 
 public sealed record ChangeUserRoleRequest(string RoleName);
+
+public sealed record ChangeUserTeamRequest(int TeamId);
 
 public sealed record UserManagementUserResponse(
     string Id,

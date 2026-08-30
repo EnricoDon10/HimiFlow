@@ -13,7 +13,7 @@
 .eyebrow,
 .status-label {
   margin: 0 0 0.35rem;
-  color: #b45309;
+  color: #f58220;
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -35,10 +35,10 @@ h2 {
 .status-card,
 .install-card {
   border: 1px solid #e5e7eb;
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   background: #fff;
   padding: 1.35rem;
-  box-shadow: 0 0.8rem 2rem rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.08);
 }
 
 .status-card {
@@ -47,7 +47,7 @@ h2 {
   border-left: 0.35rem solid #15803d;
 
   &.warning {
-    border-left-color: #b45309;
+    border-left-color: #991b1b;
   }
 
   strong {
@@ -80,7 +80,7 @@ dd {
 
 .status-message {
   margin: 0;
-  color: #92400e;
+  color: #991b1b;
 }
 
 .install-card {

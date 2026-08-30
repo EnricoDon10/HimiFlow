@@ -20,17 +20,3 @@ export interface BackupFile {
   integrityStatus: string;
   lastValidatedAtUtc: string | null;
 }
-
-export interface BackupValidation {
-  fileName: string;
-  isValid: boolean;
-  result: string;
-  checkedAtUtc: string;
-}
-
-export interface RestorePreparation {
-  fileName: string;
-  isValid: boolean;
-  message: string;
-  checkedAtUtc: string;
-}

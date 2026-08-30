@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
-import { BackupFile, BackupStatus } from '../../../core/models/backup.model';
+import { BackupStatus } from '../../../core/models/backup.model';
 import { BackupRecoveryService } from '../../../core/services/backup-recovery.service';
 
 @Component({
@@ -12,7 +12,6 @@ import { BackupRecoveryService } from '../../../core/services/backup-recovery.se
 })
 export class BackupRecoveryComponent implements OnInit {
   readonly status = signal<BackupStatus | null>(null);
-  readonly backups = signal<BackupFile[]>([]);
   readonly isLoading = signal(false);
   readonly isWorking = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -27,12 +26,8 @@ export class BackupRecoveryComponent implements OnInit {
   load(): void {
     this.isLoading.set(true);
     this.errorMessage.set(null);
-    Promise.all([
-      this.backupService.getStatus().toPromise(),
-      this.backupService.list().toPromise()
-    ]).then(([status, backups]) => {
+    this.backupService.getStatus().toPromise().then(status => {
       this.status.set(status ?? null);
-      this.backups.set(backups ?? []);
       this.isLoading.set(false);
     }).catch(error => {
       this.errorMessage.set(this.extractErrorMessage(error, 'Backup-Informationen konnten nicht geladen werden.'));
@@ -50,41 +45,6 @@ export class BackupRecoveryComponent implements OnInit {
       },
       error: error => {
         this.errorMessage.set(this.extractErrorMessage(error, 'Backup konnte nicht erstellt werden.'));
-        this.finishWork();
-      }
-    });
-  }
-
-  validateBackup(backup: BackupFile): void {
-    this.startWork();
-    this.backupService.validate(backup.fileName).subscribe({
-      next: result => {
-        this.successMessage.set(result.isValid
-          ? `Backup ${backup.fileName} ist gültig.`
-          : `Backup ${backup.fileName} ist ungültig.`);
-        this.finishWork();
-        this.load();
-      },
-      error: error => {
-        this.errorMessage.set(this.extractErrorMessage(error, 'Backup konnte nicht geprüft werden.'));
-        this.finishWork();
-      }
-    });
-  }
-
-  prepareRestore(backup: BackupFile): void {
-    if (!confirm(`Wiederherstellung für ${backup.fileName} vorbereiten? HimiFlow muss dafür vollständig beendet werden.`)) {
-      return;
-    }
-
-    this.startWork();
-    this.backupService.prepareRestore(backup.fileName).subscribe({
-      next: result => {
-        this.successMessage.set(result.message);
-        this.finishWork();
-      },
-      error: error => {
-        this.errorMessage.set(this.extractErrorMessage(error, 'Wiederherstellung konnte nicht vorbereitet werden.'));
         this.finishWork();
       }
     });

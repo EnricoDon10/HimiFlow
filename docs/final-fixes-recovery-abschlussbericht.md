@@ -41,7 +41,7 @@ Das automatische SQLite-Backup bleibt aktiv und wird mit `integrity_check` gepr�
 
 ## 7. SystemAdmin-Backup-Oberfläche
 
-`/admin/backup-recovery` zeigt Status, Alter/Anzahl/Aufbewahrung, Dateigröße und Prüfstatus. SystemAdmins können Backups erstellen, prüfen und eine Wiederherstellung vorbereiten. Die Oberfläche zeigt keine öffentlichen Dateipfade und bietet keinen Download.
+`/admin/backup-recovery` zeigt Status, Alter/Anzahl/Aufbewahrung und erlaubt die manuelle Erstellung eines Backups. Die Wiederherstellung bleibt bewusst außerhalb der Oberfläche und wird ausschließlich im geplanten Wartungsmodus über die interne Betriebsanleitung durchgeführt. Die Oberfläche zeigt keine öffentlichen Dateipfade und bietet keinen Download.
 
 ## 8. Restore-Ablauf
 

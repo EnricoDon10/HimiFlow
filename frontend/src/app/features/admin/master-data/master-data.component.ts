@@ -46,8 +46,6 @@ export class MasterDataComponent implements OnInit {
   productGroupValue = '';
   editProductGroupValue = '';
   statusFilter: StatusFilter = 'ALL';
-  teamSearch = '';
-  savingReasonSearch = '';
   productGroupSearch = '';
 
   private loadRevision = 0;
@@ -107,11 +105,11 @@ export class MasterDataComponent implements OnInit {
   }
 
   visibleTeams(): Team[] {
-    return this.teams().filter((team) => this.matchesFilter(team.isActive, team.displayName, this.teamSearch));
+    return this.teams().filter((team) => this.matchesStatusFilter(team.isActive));
   }
 
   visibleSavingReasons(): SavingReason[] {
-    return this.savingReasons().filter((reason) => this.matchesFilter(reason.isActive, reason.name, this.savingReasonSearch));
+    return this.savingReasons().filter((reason) => this.matchesStatusFilter(reason.isActive));
   }
 
   visibleProductGroups(): ProductGroup[] {
@@ -336,10 +334,14 @@ export class MasterDataComponent implements OnInit {
   }
 
   private matchesFilter(isActive: boolean, value: string, search: string): boolean {
-    const statusMatches = this.statusFilter === 'ALL'
+    return this.matchesStatusFilter(isActive)
+      && value.toLocaleLowerCase('de-DE').includes(search.trim().toLocaleLowerCase('de-DE'));
+  }
+
+  private matchesStatusFilter(isActive: boolean): boolean {
+    return this.statusFilter === 'ALL'
       || (this.statusFilter === 'ACTIVE' && isActive)
       || (this.statusFilter === 'INACTIVE' && !isActive);
-    return statusMatches && value.toLocaleLowerCase('de-DE').includes(search.trim().toLocaleLowerCase('de-DE'));
   }
 
   private extractErrorMessage(error: unknown, fallback: string): string {

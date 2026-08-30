@@ -2,7 +2,7 @@
   <div>
     <p>System-Administration</p>
     <h1>Datensicherung &amp; Wiederherstellung</h1>
-    <span>Backups prüfen und für einen geplanten Wartungsmodus vorbereiten. Ein Live-Swap der laufenden Datenbank ist nicht möglich.</span>
+    <span>Backup-Status überwachen und bei Bedarf eine manuelle Sicherung erstellen. Wiederherstellungen erfolgen ausschließlich im geplanten Wartungsmodus.</span>
   </div>
   <button type="button" (click)="load()" [disabled]="isLoading() || isWorking()">Aktualisieren</button>
 </section>
@@ -32,30 +32,4 @@
     <p>Das Backup wird serverseitig erstellt und direkt per SQLite-Integritätsprüfung validiert.</p>
   </div>
   <button class="primary" type="button" (click)="createBackup()" [disabled]="isWorking()">Backup erstellen</button>
-</section>
-
-<section class="table-card">
-  <div class="card-heading"><div><p class="eyebrow">Offline-Recovery</p><h2>Verfügbare Backups</h2></div></div>
-  @if (isLoading()) {
-    <p>Backups werden geladen…</p>
-  } @else if (backups().length === 0) {
-    <p>Noch keine Backups vorhanden.</p>
-  } @else {
-    <div class="table-wrapper"><table>
-      <thead><tr><th>Datei</th><th>Erstellt</th><th>Größe</th><th>Integrität</th><th>Aktionen</th></tr></thead>
-      <tbody>@for (backup of backups(); track backup.fileName) {
-        <tr>
-          <td><code>{{ backup.fileName }}</code></td>
-          <td>{{ backup.createdAtUtc | date:'dd.MM.yyyy HH:mm:ss' }}</td>
-          <td>{{ formatBytes(backup.sizeBytes) }}</td>
-          <td>{{ backup.lastValidatedAtUtc ? backup.integrityStatus : 'Nicht geprüft' }}</td>
-          <td class="actions">
-            <button type="button" (click)="validateBackup(backup)" [disabled]="isWorking()">Prüfen</button>
-            <button type="button" (click)="prepareRestore(backup)" [disabled]="isWorking()">Wiederherstellung vorbereiten</button>
-          </td>
-        </tr>
-      }</tbody>
-    </table></div>
-  }
-  <p class="hint">Backups werden nicht über den Browser heruntergeladen oder aus dem WebRoot ausgeliefert. Für einen Restore bitte die interne Anleitung <code>docs/disaster-recovery.md</code> verwenden.</p>
 </section>

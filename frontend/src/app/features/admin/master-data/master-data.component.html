@@ -39,9 +39,6 @@
       <label class="full-width">Organisationseinheit <input name="organizationUnit" [(ngModel)]="organizationUnit" maxlength="200" placeholder="z. B. 3410 - Bochum 1" required /></label>
       <button class="primary" type="submit" [disabled]="isSaving() || isReadOnly()">Organisationseinheit anlegen</button>
     </form>
-    <label class="search-field">Suche
-      <input name="teamSearch" [(ngModel)]="teamSearch" placeholder="Organisationseinheit suchen" />
-    </label>
     <div class="table-wrapper">
       <table>
         <thead><tr><th>Organisationseinheit</th><th>Status</th><th>Aktive Benutzer</th><th>Aktionen</th></tr></thead>
@@ -65,9 +62,6 @@
       <label>Bezeichnung <input name="savingReasonName" [(ngModel)]="savingReasonName" maxlength="300" placeholder="z. B. Vertragsoptimierung" required /></label>
       <button class="primary" type="submit" [disabled]="isSaving() || isReadOnly()">Einspargrund anlegen</button>
     </form>
-    <label class="search-field">Suche
-      <input name="savingReasonSearch" [(ngModel)]="savingReasonSearch" placeholder="Einspargrund suchen" />
-    </label>
     <div class="table-wrapper"><table><thead><tr><th>Bezeichnung</th><th>Status</th><th>Aktionen</th></tr></thead><tbody>
       @for (reason of visibleSavingReasons(); track reason.id) {
         <tr><td>@if (editingReasonId() === reason.id) { <input name="editSavingReasonName" [(ngModel)]="editSavingReasonName" maxlength="300" /> } @else { <strong>{{ reason.name }}</strong> }</td><td><span class="status" [class.inactive]="!reason.isActive">{{ reason.isActive ? 'Aktiv' : 'Inaktiv' }}</span></td><td class="actions">@if (editingReasonId() === reason.id) { <button class="small primary" type="button" (click)="updateSavingReason(reason)" [disabled]="isSaving()">Speichern</button><button class="small" type="button" (click)="cancelReasonEditing()">Abbrechen</button> } @else { <button class="small" type="button" (click)="startReasonEditing(reason)">Bearbeiten</button><button class="small" [class.danger]="reason.isActive" [class.reactivate]="!reason.isActive" type="button" (click)="toggleSavingReason(reason)" [disabled]="isSaving() || isReadOnly()">{{ reason.isActive ? 'Deaktivieren' : 'Reaktivieren' }}</button> }</td></tr>

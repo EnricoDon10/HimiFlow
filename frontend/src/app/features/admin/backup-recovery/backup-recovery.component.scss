@@ -1,11 +1,11 @@
 .page-header { display:flex; justify-content:space-between; gap:1rem; margin-bottom:1.5rem; }
 .page-header p,.eyebrow { margin:0 0 .35rem; color:#F58220; font-size:.75rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
-.page-header h1,.status-card h2,.action-card h2,.table-card h2 { margin:0 0 .35rem; color:#1F1F1F; }
+.page-header h1,.status-card h2,.action-card h2 { margin:0 0 .35rem; color:#1F1F1F; }
 .page-header span,.action-card p,.hint { color:#6B6B6B; }
 .page-header button,.primary,.actions button { border:0; border-radius:.7rem; background:#F58220; color:#fff; padding:.7rem .9rem; font-weight:800; cursor:pointer; }
-.status-card,.action-card,.table-card,.message { background:#fff; border-radius:1rem; box-shadow:0 1rem 2.5rem rgba(15,23,42,.07); padding:1.25rem; margin-bottom:1.25rem; }
+.status-card,.action-card,.message { background:#fff; border-radius:1rem; box-shadow:0 1rem 2.5rem rgba(15,23,42,.07); padding:1.25rem; margin-bottom:1.25rem; }
 .status-card { display:grid; grid-template-columns:1fr 1fr; gap:1rem; border-left:.35rem solid #15803d; }.status-card.warning { border-left-color:#b45309; }
 .status-card span { color:#6B6B6B; }.status-card dl { display:grid; grid-template-columns:1fr 1fr; gap:.7rem 1rem; margin:0; }.status-card dt { color:#6B6B6B; font-size:.85rem; }.status-card dd { margin:.15rem 0 0; font-weight:800; }
-.action-card { display:flex; align-items:center; justify-content:space-between; gap:1rem; }.action-card p { margin:0; }.table-wrapper { overflow:auto; } table { width:100%; border-collapse:collapse; min-width:52rem; } th,td { padding:.7rem; border-bottom:1px solid #e5e7eb; text-align:left; vertical-align:middle; } th { background:#f7f7f5; font-size:.78rem; text-transform:uppercase; } code { font-size:.8rem; }.actions { white-space:nowrap; }.actions button { margin:.1rem; background:#e8e8e8; color:#3a3a3a; }.hint { margin:1rem 0 0; font-size:.9rem; }.message.error { color:#991b1b; background:#fee2e2; }.message.success { color:#166534; background:#dcfce7; }
+.action-card { display:flex; align-items:center; justify-content:space-between; gap:1rem; }.action-card p { margin:0; }.message.error { color:#991b1b; background:#fee2e2; }.message.success { color:#166534; background:#dcfce7; }
 button:disabled { opacity:.6; cursor:not-allowed; }
 @media (max-width:700px) { .page-header,.action-card { display:grid; }.status-card { grid-template-columns:1fr; }.status-card dl { grid-template-columns:1fr; } }

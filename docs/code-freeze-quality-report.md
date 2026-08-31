@@ -61,7 +61,7 @@ Die folgenden Ergebnisse wurden lokal mit .NET SDK 10.0.400 beziehungsweise npm 
 | npm `ci` / Script-Policy | bestanden, keine unbewerteten Install-Scripts, 0 Schwachstellen |
 | Öffentliche Anbieterinformationen | bestanden: Felder, Telefonnummern, Verantwortliche, leere USt-ID ausgeblendet |
 
-Die GitHub-Workflows führen zusätzlich CodeQL, Gitleaks, Dependency Review und den Windows-Restore-Job aus. SBOM und Third-Party Notices werden reproduzierbar über das vorhandene Publish-Skript erzeugt und sind Bestandteil des Release-Prozesses. Ein Remote-Workflow-Lauf ist erst nach dem nächsten Push aussagekräftig; lokale Ergebnisse werden dadurch nicht als GitHub-Status ausgegeben.
+Die GitHub-Workflows führen zusätzlich CodeQL, Gitleaks, Dependency Review und den Windows-Restore-Job aus. SBOM und Third-Party Notices werden reproduzierbar über das vorhandene Publish-Skript erzeugt und sind Bestandteil des Release-Prozesses. Für den finalen Commit `26a603b` sind [HimiFlow CI #26](https://github.com/EnricoDon10/HimiFlow/actions/runs/33419591845) einschließlich Geheimnisprüfung/Restore, [HimiFlow Browser E2E #13](https://github.com/EnricoDon10/HimiFlow/actions/runs/33419591890) und [HimiFlow CodeQL #24](https://github.com/EnricoDon10/HimiFlow/actions/runs/33419591871) erfolgreich abgeschlossen.
 
 ## Bewusste Restpunkte
 

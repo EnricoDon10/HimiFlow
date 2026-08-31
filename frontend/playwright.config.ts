@@ -19,7 +19,10 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
   forbidOnly: !!process.env['CI'],
-  retries: process.env['CI'] ? 1 : 0,
+  // These critical flows share the isolated E2E database. Retrying after a
+  // partially completed flow would reuse changed credentials and hide the
+  // original failure behind a misleading follow-up error.
+  retries: 0,
   workers: 1,
   reporter: process.env['CI'] ? 'line' : 'list',
   use: {

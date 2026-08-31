@@ -26,6 +26,7 @@ Die Local Edition ist für einen kontrollierten Pilot- und Abnahmelauf eingefror
 - **npm/Version:** Nur die vier im Lockfile geprüften nativen Build-Scripts (`@parcel/watcher`, `esbuild`, `lmdb`, `msgpackr-extract`) sind versionsgenau per `allowScripts` freigegeben. Der Pilotstand lautet konsistent `0.9.0-rc.1`; `1.0.0` bleibt der späteren Kundenabnahme vorbehalten.
 - **Anbieterangaben:** `/api/public/product-info` und `/legal` liefern nun konfigurationsgetrieben ME Digitale GbR Dirr & Mancuso, Kurzform, Anschrift, beide Gesellschafter, beide `tel:`-Telefonnummern, E-Mail und Inhaltsverantwortliche. Eine leere USt-ID wird vollständig ausgeblendet; Register-, Website- und Datenschutzwerte bleiben leer, solange sie nicht rechtlich freigegeben konfiguriert sind.
 - **VIACTIV-Pilottest:** Die signierte Testlizenz `TEST-VIACTIV-2026-0908-01` wurde über den regulären SystemAdmin-Lizenzdialog installiert und als `ACTIVE` geprüft (Kunde `VIACTIV Krankenkasse`, `viactiv-test-01`, gültig bis 08.09.2026 23:59:59 UTC, Grace bis 09.09.2026 23:59:59 UTC, MaxUsers 50, Feature `core`). Schlüsseldateien liegen ausschließlich unter `.local-secrets/himiflow-test-licensing/`; weder vollständiger Lizenzschlüssel noch Private Key stehen in diesem Bericht oder Git.
+- **Playwright-E2E-Stabilisierung:** Der rote CI-Flow entstand beim Erstellen des FachAdmins durch ein noch nicht abgeschlossenes Laden der Teams; der fehlende Teamwert führte anschließend nur zu einem irreführenden Fehler am temporären Passwort-Locator. Der Test wartet jetzt auf die echte Teams-API-Antwort, die sichtbare Benutzerverwaltungsseite und mindestens eine auswählbare Option, wählt ein Team explizit und prüft die Create-Response mit HTTP-Status und Response-Body. Da die drei seriellen Flows eine gemeinsame isolierte Datenbank und erzeugte Zugangsdaten verwenden, sind Retries auf `0` gesetzt, damit kein teilweiser Lauf einen Folgefehler mit falschen Zugangsdaten erzeugt.
 
 ## Historische SQLite-Migrationswarnung
 
@@ -35,7 +36,7 @@ Die Warnungen `SqlOperation` während des Rebuilds von `Users` und `PRAGMA forei
 
 Der Requestpfad wurde vollständig verfolgt. Ein nicht vorhandenes oder leeres Backup-Verzeichnis ist ein gültiger Zustand und liefert weiterhin ein Statusobjekt (kein Fehler). Der konkrete Fehlerpfad lag bei nicht lesbaren/ungültig konfigurierten Verzeichnissen: `Directory.EnumerateFiles` propagierte die Ausnahme, während das Frontend nur den pauschalen Fallbacktext zeigte. Der Status-Endpunkt gibt solche Betriebsfehler jetzt als `503 ProblemDetails` mit verständlichem Detail zurück; normale Zustände (`MISSING`, `CURRENT`, `OVERDUE`, `DISABLED`, externer Provider) bleiben `200 OK`. Die Oberfläche räumt beim erfolgreichen Laden alte Fehler auf, unterstützt Retry und lädt nach manueller Erstellung erneut. Dafür sind Evaluator-, HTTP-Integrations- und Frontend-Komponententests ergänzt.
 
-Der bestehende SystemAdmin-Playwright-Flow ruft zusätzlich `/admin/backup-recovery` auf und prüft Überschrift, Statuskarte, einen zulässigen Betriebsstatus (`MISSING`, `CURRENT`, `OVERDUE`, `DISABLED` oder `EXTERNAL_PROVIDER`) sowie das Ausbleiben einer sichtbaren roten Fehlermeldung. Ein Restore wird im Browser weiterhin nicht ausgeführt.
+Der bestehende SystemAdmin-Playwright-Flow ruft zusätzlich `/admin/backup-recovery` auf und prüft Überschrift, Statuskarte, einen zulässigen Betriebsstatus (`MISSING`, `CURRENT`, `OVERDUE`, `DISABLED` oder `EXTERNAL_PROVIDER`) sowie das Ausbleiben einer sichtbaren roten Fehlermeldung. Ein Restore wird im Browser weiterhin nicht ausgeführt. Der vollständige Flow wurde danach in drei aufeinanderfolgenden lokalen Läufen mit jeweils neuer temporärer SQLite-Datenbank erfolgreich ausgeführt.
 
 ## Verifizierte Gates
 
@@ -48,6 +49,7 @@ Die folgenden Ergebnisse wurden lokal mit .NET SDK 10.0.400 beziehungsweise npm 
 | Frontendtests | 20 bestanden |
 | Frontend Production-Build | bestanden, ohne Budgetwarnung |
 | Kritische Playwright-Flows | 3/3 bestanden (Erstlogin/Passwortwechsel mit Backup-Smoke, FachAdmin-Fachfluss, Lizenz/Logout) |
+| Playwright-Mehrfachlauf | 3 aufeinanderfolgende lokale Läufe jeweils 3/3 bestanden, neue isolierte SQLite-DB je Lauf |
 | `npm audit --audit-level=high` | 0 Schwachstellen |
 | Secret-Mustersuche | sauber |
 | Gitleaks lokal | nicht installiert; Gitleaks bleibt im GitHub-Workflow aktiviert |

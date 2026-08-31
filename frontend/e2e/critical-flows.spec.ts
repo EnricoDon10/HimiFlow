@@ -23,8 +23,19 @@ test('SystemAdmin Erstlogin erzwingt Passwortwechsel und legt FachAdmin an', asy
   await page.getByLabel('Aktuelles temporäres Passwort').fill(adminTemporaryPassword);
   await page.getByLabel('Neues persönliches Passwort').fill(adminPassword);
   await page.getByLabel('Neues Passwort bestätigen').fill(adminPassword);
+  const initialUsersResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'GET' && response.url().includes('/api/user-management')
+  );
+  const initialTeamsResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'GET' && response.url().includes('/api/master-data/teams')
+  );
   await page.getByRole('button', { name: 'Passwort speichern' }).click();
   await expect(page).toHaveURL(/admin\/users/);
+  const initialUsersResponse = await initialUsersResponsePromise;
+  const initialTeamsResponse = await initialTeamsResponsePromise;
+  expect(initialUsersResponse.ok()).toBeTruthy();
+  expect(initialTeamsResponse.ok()).toBeTruthy();
+  await expect(page.getByRole('heading', { name: 'Benutzerverwaltung' })).toBeVisible();
 
   await page.goto('/admin/backup-recovery');
   await expect(page.getByRole('heading', { name: 'Datensicherung & Wiederherstellung' })).toBeVisible();
@@ -32,12 +43,46 @@ test('SystemAdmin Erstlogin erzwingt Passwortwechsel und legt FachAdmin an', asy
   await expect(page.locator('.status-card h2')).toHaveText(/^(MISSING|CURRENT|OVERDUE|DISABLED|EXTERNAL_PROVIDER)$/);
   await expect(page.locator('.message.error')).toHaveCount(0);
 
+  const usersResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'GET' && response.url().includes('/api/user-management')
+  );
+  const teamsResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'GET' && response.url().includes('/api/master-data/teams')
+  );
   await page.goto('/admin/users');
+  const usersResponse = await usersResponsePromise;
+  const teamsResponse = await teamsResponsePromise;
+  expect(usersResponse.ok()).toBeTruthy();
+  expect(teamsResponse.ok()).toBeTruthy();
+  await expect(page.getByRole('heading', { name: 'Benutzerverwaltung' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Benutzer anlegen' })).toBeEnabled();
+  const teamSelect = page.locator('select[name="teamId"]');
+  await expect(teamSelect).toBeVisible();
+  await expect.poll(async () => teamSelect.locator('option').count()).toBeGreaterThan(0);
 
   await page.getByLabel('Benutzername').fill('e2e.fachadmin');
   await page.getByLabel('Anzeigename').fill('E2E FachAdmin');
   await page.locator('select[name="roleName"]').selectOption({ label: 'Fach-Admin / Führungskraft' });
+  await expect(teamSelect).toBeVisible();
+  await teamSelect.selectOption({ index: 0 });
+
+  const createResponsePromise = page.waitForResponse(response =>
+    response.request().method() === 'POST' && response.url().includes('/api/user-management')
+  );
   await page.getByRole('button', { name: 'Benutzer anlegen' }).click();
+  const createResponse = await createResponsePromise;
+  if (!createResponse.ok()) {
+    let responseBody = '';
+    try {
+      responseBody = await createResponse.text();
+    } catch {
+      responseBody = '<Response-Body konnte nicht gelesen werden>';
+    }
+    throw new Error(
+      `FachAdmin-Erstellung fehlgeschlagen (HTTP ${createResponse.status()}): ${responseBody || '<leerer Response-Body>'}`
+    );
+  }
+  expect(createResponse.ok()).toBeTruthy();
   const temporaryPassword = page.locator('.message.warning code');
   await expect(temporaryPassword).toBeVisible();
   const text = await temporaryPassword.textContent();

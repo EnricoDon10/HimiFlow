@@ -1,10 +1,12 @@
 using System.Security.Claims;
+using System.Data;
 using Einsparungs.Api.Data;
 using Einsparungs.Api.DTOs;
 using Einsparungs.Api.Models;
 using Einsparungs.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 
 namespace Einsparungs.Api.Controllers;
@@ -35,11 +37,14 @@ public sealed class LicenseAdminController : ControllerBase
             return Unauthorized();
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var result = await licenseService.InstallAsync(request.LicenseKey, installedByUserId, cancellationToken);
 
         if (!result.Succeeded)
         {
-            return BadRequest(new { errors = new[] { result.Error ?? "Die Lizenz konnte nicht installiert werden." } });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                [result.Error ?? "Die Lizenz konnte nicht installiert werden."]));
         }
 
         db.AuditLogs.Add(new AuditLog
@@ -62,6 +67,7 @@ public sealed class LicenseAdminController : ControllerBase
             UserAgent = Request.Headers.UserAgent.ToString()
         });
         await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return Ok(result.Status);
     }

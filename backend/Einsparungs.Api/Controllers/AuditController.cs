@@ -32,12 +32,14 @@ public sealed class AuditController : ControllerBase
     {
         if (page is < 1 or > 100_000 || pageSize is < 1 or > 100)
         {
-            return BadRequest(new { errors = new[] { "page muss zwischen 1 und 100000 und pageSize zwischen 1 und 100 liegen." } });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                ["page muss zwischen 1 und 100000 und pageSize zwischen 1 und 100 liegen."]));
         }
 
         if (from.HasValue && to.HasValue && from.Value > to.Value)
         {
-            return BadRequest(new { errors = new[] { "from darf nicht nach to liegen." } });
+            return BadRequest(ApiProblem.Validation(HttpContext, ["from darf nicht nach to liegen."]));
         }
 
         var query = db.AuditLogs

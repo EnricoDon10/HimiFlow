@@ -127,24 +127,6 @@ public sealed class SqliteBackupServiceTests
     }
 
     [TestMethod]
-    public async Task ValidateNamedAsync_RejectsPathTraversal()
-    {
-        var root = Path.Combine(Path.GetTempPath(), $"HimiFlow-backup-test-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(root);
-        try
-        {
-            var service = CreateService(root, Path.Combine(root, "source.db"));
-            var result = await service.ValidateNamedAsync("..\\outside.db");
-            Assert.IsFalse(result.IsValid);
-            StringAssert.Contains(result.Result, "Dateiname");
-        }
-        finally
-        {
-            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
-        }
-    }
-
-    [TestMethod]
     public async Task InvalidBackupDoesNotOverwriteExistingDatabase()
     {
         var root = Path.Combine(Path.GetTempPath(), $"HimiFlow-backup-test-{Guid.NewGuid():N}");

@@ -24,10 +24,11 @@ public sealed class ProviderMigrationSeparationTests
 
         Assert.IsTrue(sqliteMigrations.Any(item => item.EndsWith("_ProductionQueryIndexes", StringComparison.Ordinal)));
         Assert.IsFalse(sqliteMigrations.Any(item => item.EndsWith("_SqlServerInitial", StringComparison.Ordinal)));
-        Assert.AreEqual(3, sqlServerMigrations.Length);
+        Assert.AreEqual(4, sqlServerMigrations.Length);
         Assert.IsTrue(sqlServerMigrations.Any(item => item.EndsWith("_SqlServerInitial", StringComparison.Ordinal)));
         Assert.IsTrue(sqlServerMigrations.Any(item => item.EndsWith("_LicenseEnforcementHardening", StringComparison.Ordinal)));
         Assert.IsTrue(sqlServerMigrations.Any(item => item.EndsWith("_AuditRetentionSupport", StringComparison.Ordinal)));
+        Assert.IsTrue(sqlServerMigrations.Any(item => item.EndsWith("_OneRolePerUser", StringComparison.Ordinal)));
     }
 
     [TestMethod]

@@ -65,15 +65,6 @@ public sealed class LicenseReadOnlyMiddleware : IMiddleware
         }
 
         var segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 5 &&
-            string.Equals(segments[0], "api", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(segments[1], "operations", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(segments[2], "backups", StringComparison.OrdinalIgnoreCase) &&
-            segments[4] is "validate" or "prepare-restore")
-        {
-            return true;
-        }
-
         return segments.Length == 4 &&
                string.Equals(segments[0], "api", StringComparison.OrdinalIgnoreCase) &&
                string.Equals(segments[1], "user-management", StringComparison.OrdinalIgnoreCase) &&

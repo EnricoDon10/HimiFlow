@@ -50,7 +50,7 @@ public sealed class UserManagementController : ControllerBase
 
         if (errors.Count > 0)
         {
-            return BadRequest(new { errors });
+            return BadRequest(ApiProblem.Validation(HttpContext, errors));
         }
 
         var roleName = request.RoleName.Trim();
@@ -78,10 +78,9 @@ public sealed class UserManagementController : ControllerBase
 
         if (!creationResult.Succeeded)
         {
-            return BadRequest(new
-            {
-                errors = creationResult.Errors.Select(error => error.Description).ToArray()
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                creationResult.Errors.Select(error => error.Description)));
         }
 
         db.UserRoles.Add(new AppUserRole
@@ -112,6 +111,7 @@ public sealed class UserManagementController : ControllerBase
     [HttpPost("{id:guid}/reset-password")]
     public async Task<ActionResult<ResetPasswordResponse>> ResetPassword(Guid id)
     {
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var user = await userManager.FindByIdAsync(id.ToString());
 
         if (user is null || user.IsDeleted)
@@ -125,10 +125,9 @@ public sealed class UserManagementController : ControllerBase
 
         if (!resetResult.Succeeded)
         {
-            return BadRequest(new
-            {
-                errors = resetResult.Errors.Select(error => error.Description).ToArray()
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                resetResult.Errors.Select(error => error.Description)));
         }
 
         user.MustChangePassword = true;
@@ -140,10 +139,9 @@ public sealed class UserManagementController : ControllerBase
 
         if (!updateResult.Succeeded)
         {
-            return BadRequest(new
-            {
-                errors = updateResult.Errors.Select(error => error.Description).ToArray()
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                updateResult.Errors.Select(error => error.Description)));
         }
 
         await userManager.UpdateSecurityStampAsync(user);
@@ -154,6 +152,7 @@ public sealed class UserManagementController : ControllerBase
             user.DisplayName
         });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return Ok(new ResetPasswordResponse(
             user.Id.ToString(),
@@ -171,7 +170,7 @@ public sealed class UserManagementController : ControllerBase
 
         if (!ApplicationRoles.All.Contains(roleName, StringComparer.Ordinal))
         {
-            return BadRequest(new { errors = new[] { "Die ausgewählte Rolle existiert nicht." } });
+            return BadRequest(ApiProblem.Validation(HttpContext, ["Die ausgewählte Rolle existiert nicht."]));
         }
 
         var currentUserId = GetCurrentUserId();
@@ -191,28 +190,25 @@ public sealed class UserManagementController : ControllerBase
 
         if (id == currentUserId && currentRole == ApplicationRoles.SystemAdmin)
         {
-            return BadRequest(new
-            {
-                errors = new[] { "Der aktuell angemeldete System-Admin darf seine eigene Adminrolle nicht entfernen." }
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                ["Der aktuell angemeldete System-Admin darf seine eigene Adminrolle nicht entfernen."]));
         }
 
         if (
             currentRole == ApplicationRoles.SystemAdmin &&
             await IsLastActiveSystemAdminAsync(id))
         {
-            return BadRequest(new
-            {
-                errors = new[] { "Die Rolle des letzten aktiven System-Admins darf nicht entfernt werden." }
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                ["Die Rolle des letzten aktiven System-Admins darf nicht entfernt werden."]));
         }
 
         if (roleName != ApplicationRoles.SystemAdmin && user.TeamId is null)
         {
-            return BadRequest(new
-            {
-                errors = new[] { "Vor der Rollenänderung muss dem Benutzer ein Team zugeordnet sein." }
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                ["Vor der Rollenänderung muss dem Benutzer ein Team zugeordnet sein."]));
         }
 
         if (roleName != ApplicationRoles.SystemAdmin && user.TeamId is not null &&
@@ -221,6 +217,7 @@ public sealed class UserManagementController : ControllerBase
             return UserTeamInactive(user.TeamId);
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var targetRole = await db.Roles.SingleAsync(role => role.Name == roleName);
         db.UserRoles.RemoveRange(user.UserRoles);
         db.UserRoles.Add(new AppUserRole { AppUserId = user.Id, AppRoleId = targetRole.Id });
@@ -240,6 +237,7 @@ public sealed class UserManagementController : ControllerBase
             To = roleName
         });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var updatedUser = await UserQuery().SingleAsync(item => item.Id == id);
         return Ok(ToResponse(updatedUser));
@@ -259,7 +257,7 @@ public sealed class UserManagementController : ControllerBase
         var roleName = user.UserRoles.Select(userRole => userRole.AppRole.Name).SingleOrDefault();
         if (roleName == ApplicationRoles.SystemAdmin)
         {
-            return BadRequest(new { errors = new[] { "Ein System-Admin benötigt keine Organisationseinheit." } });
+            return BadRequest(ApiProblem.Validation(HttpContext, ["Ein System-Admin benötigt keine Organisationseinheit."]));
         }
 
         var targetTeam = await db.Teams.SingleOrDefaultAsync(
@@ -277,11 +275,14 @@ public sealed class UserManagementController : ControllerBase
             return Ok(ToResponse(user));
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         user.TeamId = targetTeam.Id;
         var updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
-            return BadRequest(new { errors = updateResult.Errors.Select(error => error.Description).ToArray() });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                updateResult.Errors.Select(error => error.Description)));
         }
 
         await userManager.UpdateSecurityStampAsync(user);
@@ -294,6 +295,7 @@ public sealed class UserManagementController : ControllerBase
             NewTeam = targetTeam.DisplayName
         });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         var updatedUser = await UserQuery().SingleAsync(item => item.Id == id);
         return Ok(ToResponse(updatedUser));
@@ -306,10 +308,9 @@ public sealed class UserManagementController : ControllerBase
 
         if (currentUserId == id)
         {
-            return BadRequest(new
-            {
-                errors = new[] { "Der aktuell angemeldete System-Admin kann sich nicht selbst deaktivieren." }
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                ["Der aktuell angemeldete System-Admin kann sich nicht selbst deaktivieren."]));
         }
 
         var user = await UserQuery().SingleOrDefaultAsync(item => item.Id == id);
@@ -321,18 +322,25 @@ public sealed class UserManagementController : ControllerBase
 
         if (await IsLastActiveSystemAdminAsync(id))
         {
-            return BadRequest(new
-            {
-                errors = new[] { "Der letzte aktive System-Admin darf nicht deaktiviert werden." }
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                ["Der letzte aktive System-Admin darf nicht deaktiviert werden."]));
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         user.IsActive = false;
-        await userManager.UpdateAsync(user);
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                updateResult.Errors.Select(error => error.Description)));
+        }
         await userManager.UpdateSecurityStampAsync(user);
 
         AddAdminAudit(user.Id, "Deactivated", new { user.UserName, user.DisplayName });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return NoContent();
     }
@@ -376,7 +384,13 @@ public sealed class UserManagementController : ControllerBase
         user.AccessFailedCount = 0;
         user.LockoutEnd = null;
 
-        await userManager.UpdateAsync(user);
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                updateResult.Errors.Select(error => error.Description)));
+        }
         await userManager.UpdateSecurityStampAsync(user);
 
         AddAdminAudit(user.Id, "Activated", new { user.UserName, user.DisplayName });
@@ -393,10 +407,9 @@ public sealed class UserManagementController : ControllerBase
 
         if (currentUserId == id)
         {
-            return BadRequest(new
-            {
-                errors = new[] { "Der aktuell angemeldete System-Admin kann sich nicht selbst löschen." }
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                ["Der aktuell angemeldete System-Admin kann sich nicht selbst löschen."]));
         }
 
         var user = await UserQuery().SingleOrDefaultAsync(item => item.Id == id);
@@ -408,12 +421,12 @@ public sealed class UserManagementController : ControllerBase
 
         if (await IsLastActiveSystemAdminAsync(id))
         {
-            return BadRequest(new
-            {
-                errors = new[] { "Der letzte aktive System-Admin darf nicht gelöscht werden." }
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                ["Der letzte aktive System-Admin darf nicht gelöscht werden."]));
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var deletionStamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
 
         user.IsActive = false;
@@ -421,11 +434,18 @@ public sealed class UserManagementController : ControllerBase
         user.DeletedAt = DateTime.UtcNow;
         user.UserName = $"{user.UserName}.deleted.{deletionStamp}";
 
-        await userManager.UpdateAsync(user);
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                updateResult.Errors.Select(error => error.Description)));
+        }
         await userManager.UpdateSecurityStampAsync(user);
 
         AddAdminAudit(user.Id, "Deleted", new { user.UserName, user.DisplayName });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
 
         return NoContent();
     }

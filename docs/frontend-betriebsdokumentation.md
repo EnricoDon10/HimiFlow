@@ -6,7 +6,7 @@ Stand: 28.08.2026
 
 Das Frontend ist die browserbasierte Bedienoberflaeche von HimiFlow. Es stellt die fachlichen Funktionen der Einsparungsdatenbank fuer die Rollen Mitarbeiter, FachAdmin (Führungskraft) und SystemAdmin (IT-Administration) bereit.
 
-> **Maßgeblicher Stand Reifegrad 4 (28.08.2026):** Das Frontend verwendet keine JWTs und keinen `localStorage`. Die Anmeldung erfolgt über die HttpOnly-Cookie des Backends; Angular sendet API-Aufrufe mit `withCredentials` und dem CSRF-Header `X-XSRF-TOKEN`. Die Rollen heißen `Mitarbeiter`, `FachAdmin` und `SystemAdmin`. Ergänzt sind Lizenzstatus/-verwaltung, Read-only-Hinweise, responsive Layout-Politur, zugängliche Passwortfelder mit Gedrückthalten-Anzeige und die öffentliche Produkt-/Anbieterseite `/legal`. Fach-Admin-Exporte werden backendseitig mit maskierter KVNR und `no-store` ausgeliefert. Maßgeblich ist der [Reifegrad-4-Abschlussbericht](reifegrad-4-abschlussbericht.md).
+> **Maßgeblicher Stand Reifegrad 4 (28.08.2026):** Das Frontend verwendet keine JWTs und keinen `localStorage`. Die Anmeldung erfolgt über die HttpOnly-Cookie des Backends; Angular sendet API-Aufrufe mit `withCredentials` und dem CSRF-Header `X-XSRF-TOKEN`. Die Rollen heißen `Mitarbeiter`, `FachAdmin` und `SystemAdmin`. Ergänzt sind Lizenzstatus/-verwaltung, Read-only-Hinweise, responsive Layout-Politur, zugängliche Passwortfelder mit Gedrückthalten-Anzeige und die öffentliche Produkt-/Anbieterseite `/legal`. Fach-Admin-Exporte werden backendseitig mit maskierter KVNR und `no-store` ausgeliefert. Maßgeblich ist der [Code-Freeze- und Quality-Hardening-Bericht](code-freeze-quality-report.md).
 
 Das Frontend ermoeglicht:
 

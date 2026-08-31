@@ -7,9 +7,9 @@
 
 > **Phase E:** KVNRs werden in CSV-/Excel-Exporten standardmäßig maskiert. Administrative Audit-Einträge können systemseitig paginiert abgefragt werden, ohne fachliche Snapshot-Werte offenzulegen. Exportantworten werden nicht im Browser-Cache gespeichert.
 
-> **Phase F:** Die lokale Edition ist technisch abgenommen und als kontrollierter MVP-/Pilotbetrieb bewertet. Der vollständige Reifegrad und die bewussten Grenzen stehen im [Phase-F-Reifegrad- und Abschlussbericht](docs/phase-f-reifegrad-abschlussbericht.md).
+> **Phase F:** Die lokale Edition ist technisch abgenommen und als kontrollierter MVP-/Pilotbetrieb bewertet. Der vollständige Reifegrad und die bewussten Grenzen stehen im [Phase-F-Reifegrad- und Abschlussbericht](docs/archive/phase-f-reifegrad-abschlussbericht.md).
 
-> **Reifegrad 4:** Der maßgebliche aktuelle Stand ist im [Production-Gap-Abschlussbericht](docs/production-gap-abschlussbericht.md) dokumentiert. Maßgebliche Detailunterlagen: [Backend-Betrieb](docs/backend-betriebsdokumentation.md), [Login/Passwort](docs/login-und-passwortkonzept.md), [Lizenzgenerierung und Übergabe](docs/lizenzgenerierung-und-uebergabe.md), [Backup/Restore](docs/backup-und-restore-konzept.md), [Datenschutz/Berechtigungen](docs/datenschutz-und-berechtigungskonzept.md) und [Recht/Vertrag](docs/rechtliche-und-vertragliche-checkliste.md).
+> **Reifegrad 4:** Der maßgebliche aktuelle Stand ist im [Code-Freeze- und Quality-Hardening-Bericht](docs/code-freeze-quality-report.md) dokumentiert. Maßgebliche Detailunterlagen: [Backend-Betrieb](docs/backend-betriebsdokumentation.md), [Login/Passwort](docs/login-und-passwortkonzept.md), [Lizenzgenerierung und Übergabe](docs/lizenzgenerierung-und-uebergabe.md), [Backup/Restore](docs/backup-und-restore-konzept.md), [Datenschutz/Berechtigungen](docs/datenschutz-und-berechtigungskonzept.md) und [Recht/Vertrag](docs/rechtliche-und-vertragliche-checkliste.md).
 
 ## Lokaler Start unter Windows
 
@@ -338,7 +338,7 @@ Organisatorischer Nutzen:
 
 ## Projektstatus
 
-Der aktuelle Projektstand ist die gehärtete Local Edition auf **Reifegrad 4 von 5**. Backend und Angular-Frontend sind vorproduktions- und inbetriebnahmebereit; die vollständige Bewertung steht im [Reifegrad-4-Abschlussbericht](docs/reifegrad-4-abschlussbericht.md).
+Der aktuelle Projektstand ist die gehärtete Local Edition auf **Reifegrad 4 von 5**. Backend und Angular-Frontend sind vorproduktions- und inbetriebnahmebereit; die vollständige Bewertung steht im [Code-Freeze- und Quality-Hardening-Bericht](docs/code-freeze-quality-report.md).
 
 Umgesetzt sind:
 

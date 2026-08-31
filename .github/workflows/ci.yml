@@ -20,10 +20,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Repository auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: .NET 10 einrichten
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
@@ -60,10 +60,10 @@ jobs:
         working-directory: frontend
     steps:
       - name: Repository auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Node.js einrichten
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -90,7 +90,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Repository auschecken
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -99,6 +99,29 @@ jobs:
         run: ./scripts/check-secrets.ps1
 
       - name: Gitleaks installieren
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  restore:
+    name: Restore-Skript Integrationstest
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v7
+
+      - name: .NET 10 einrichten
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Abhängigkeiten wiederherstellen
+        run: dotnet restore backend/EinsparungsApp.sln
+
+      - name: API veröffentlichen
+        run: dotnet publish backend/Einsparungs.Api/Einsparungs.Api.csproj --configuration Release --no-restore --output artifacts/api
+
+      - name: Echtes Restore-Skript testen
+        shell: pwsh
+        run: ./scripts/Test-Restore-SqliteBackup.ps1 -PublishRoot "${{ github.workspace }}\artifacts\api"

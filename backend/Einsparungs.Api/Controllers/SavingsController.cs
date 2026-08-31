@@ -184,7 +184,7 @@ public class SavingsController : ControllerBase
 
         if (validationErrors.Count > 0)
         {
-            return BadRequest(new { errors = validationErrors });
+            return BadRequest(ApiProblem.Validation(HttpContext, validationErrors));
         }
 
         var oldKvAmount = RoundMoney(request.OldKvAmount);
@@ -269,7 +269,7 @@ public class SavingsController : ControllerBase
 
         if (validationErrors.Count > 0)
         {
-            return BadRequest(new { errors = validationErrors });
+            return BadRequest(ApiProblem.Validation(HttpContext, validationErrors));
         }
 
         var oldSnapshot = await CreateAuditSnapshotAsync(entry);
@@ -404,11 +404,13 @@ public class SavingsController : ControllerBase
     private static bool IsValidPagination(SavingsListQuery request) =>
         request.Page is >= 1 and <= 1_000_000 && request.PageSize is >= 1 and <= 100;
 
-    private BadRequestObjectResult InvalidPagination() => BadRequest(new
-    {
-        code = "INVALID_PAGINATION",
-        errors = new[] { "Page muss mindestens 1 und PageSize muss zwischen 1 und 100 liegen." }
-    });
+    private BadRequestObjectResult InvalidPagination() => BadRequest(ApiProblem.Create(
+        HttpContext,
+        StatusCodes.Status400BadRequest,
+        "Ungültige Seitennavigation",
+        "Page muss mindestens 1 und PageSize muss zwischen 1 und 100 liegen.",
+        code: "INVALID_PAGINATION",
+        errors: ["Page muss mindestens 1 und PageSize muss zwischen 1 und 100 liegen."]));
 
     private IQueryable<SavingsEntryResponse> SavingsResponseQuery()
     {

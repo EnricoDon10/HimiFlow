@@ -48,6 +48,11 @@ public class AppDbContext : IdentityUserContext<AppUser, Guid>
             .HasKey(x => new { x.AppUserId, x.AppRoleId });
 
         modelBuilder.Entity<AppUserRole>()
+            .HasIndex(x => x.AppUserId)
+            .HasDatabaseName("IX_UserRoles_AppUserId_Unique")
+            .IsUnique();
+
+        modelBuilder.Entity<AppUserRole>()
             .HasOne(x => x.AppUser)
             .WithMany(x => x.UserRoles)
             .HasForeignKey(x => x.AppUserId);

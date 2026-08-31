@@ -1,4 +1,6 @@
+using System.Data;
 using Einsparungs.Api.Data;
+using Einsparungs.Api.Security;
 using Einsparungs.Api.DTOs;
 using Einsparungs.Api.Models;
 using Microsoft.AspNetCore.Antiforgery;
@@ -108,7 +110,7 @@ public sealed class AuthController : ControllerBase
     {
         if (!string.Equals(request.NewPassword, request.ConfirmPassword, StringComparison.Ordinal))
         {
-            return BadRequest(new { errors = new[] { "Die neuen Passwörter stimmen nicht überein." } });
+            return BadRequest(ApiProblem.Validation(HttpContext, ["Die neuen Passwörter stimmen nicht überein."]));
         }
 
         var user = await userManager.GetUserAsync(User);
@@ -118,6 +120,7 @@ public sealed class AuthController : ControllerBase
             return Unauthorized();
         }
 
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         var result = await userManager.ChangePasswordAsync(
             user,
             request.CurrentPassword,
@@ -125,10 +128,9 @@ public sealed class AuthController : ControllerBase
 
         if (!result.Succeeded)
         {
-            return BadRequest(new
-            {
-                errors = result.Errors.Select(error => error.Description).ToArray()
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                result.Errors.Select(error => error.Description)));
         }
 
         user.MustChangePassword = false;
@@ -138,16 +140,16 @@ public sealed class AuthController : ControllerBase
 
         if (!updateResult.Succeeded)
         {
-            return BadRequest(new
-            {
-                errors = updateResult.Errors.Select(error => error.Description).ToArray()
-            });
+            return BadRequest(ApiProblem.Validation(
+                HttpContext,
+                updateResult.Errors.Select(error => error.Description)));
         }
 
         await userManager.UpdateSecurityStampAsync(user);
         await signInManager.RefreshSignInAsync(user);
         AddAuthenticationAudit(user.Id, "PasswordChanged");
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         logger.LogInformation("Passwort für Benutzer {UserId} wurde geändert.", user.Id);
 
         return Ok(await CreateLoginResponseAsync(user));
@@ -176,12 +178,11 @@ public sealed class AuthController : ControllerBase
             userName,
             HttpContext.Connection.RemoteIpAddress?.ToString());
 
-        return Unauthorized(new ProblemDetails
-        {
-            Status = StatusCodes.Status401Unauthorized,
-            Title = "Anmeldung fehlgeschlagen",
-            Detail = "Benutzername oder Passwort ist falsch oder die Anmeldung ist vorübergehend gesperrt."
-        });
+        return Unauthorized(ApiProblem.Create(
+            HttpContext,
+            StatusCodes.Status401Unauthorized,
+            "Anmeldung fehlgeschlagen",
+            "Benutzername oder Passwort ist falsch oder die Anmeldung ist vorübergehend gesperrt."));
     }
 
     private void IssueReadableAntiforgeryToken()

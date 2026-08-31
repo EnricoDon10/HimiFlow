@@ -69,9 +69,9 @@ Ein externer Check kann ohne kundenspezifische Monitoringsoftware die folgenden 
 | `/api/health/live` | Prozess lebt | HTTP 200 |
 | `/api/health/ready` | Datenbank ist bereit | HTTP 200 |
 | `/api/health/operations` | Backup-/Betriebschecks | HTTP 200; bei `MISSING`, `OVERDUE` oder Fehler HTTP 503 |
-| `/api/operations/backups/status` | Detailstatus für SystemAdmin | `status=CURRENT`, `lastSuccessfulBackupUtc` gesetzt |
+| `/api/operations/backup-status` | Detailstatus für SystemAdmin | `status=CURRENT`, `lastSuccessfulBackupUtc` gesetzt |
 
-Der Operations-Status liefert außerdem Alter, Überfälligkeit, Anzahl der Sicherungen und den konfigurierten Backupzielpfad (ohne Datenbankinhalte). Der Kunde kann daraus einen HTTP-, Windows-Service- oder PowerShell-Check bauen. Das externe Ziel, die Alarmierung und Eskalationswege bleiben kundenseitig konfigurierbar.
+Der Operations-Status liefert außerdem Alter, Überfälligkeit, Anzahl der Sicherungen und den konfigurierten Backupzielpfad (ohne Datenbankinhalte). Der Kunde kann daraus einen HTTP-, Windows-Service- oder PowerShell-Check bauen. Das externe Ziel, die Alarmierung und Eskalationswege bleiben kundenseitig konfigurierbar. Die Oberfläche stellt nur Status und eine manuelle Backup-Erstellung bereit; Datei-Auswahl, Validierung und Restore erfolgen ausschließlich über die freigegebenen Betriebs-/PowerShell-Schritte.
 
 ## SQL Server in der Phase Inbetriebnahme
 

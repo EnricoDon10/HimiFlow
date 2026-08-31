@@ -41,10 +41,6 @@ export class MasterDataService {
     return this.http.post<Team>(`${API_CONFIG.baseUrl}/api/master-data/teams/${id}/deactivate`, {});
   }
 
-  deleteTeam(id: number): Observable<void> {
-    return this.http.delete<void>(`${API_CONFIG.baseUrl}/api/master-data/teams/${id}`);
-  }
-
   getSavingReasons(): Observable<SavingReason[]> {
     return this.http.get<SavingReason[]>(`${API_CONFIG.baseUrl}/api/master-data/saving-reasons`);
   }
@@ -67,10 +63,6 @@ export class MasterDataService {
 
   deactivateSavingReason(id: number): Observable<SavingReason> {
     return this.http.post<SavingReason>(`${API_CONFIG.baseUrl}/api/master-data/saving-reasons/${id}/deactivate`, {});
-  }
-
-  deleteSavingReason(id: number): Observable<void> {
-    return this.http.delete<void>(`${API_CONFIG.baseUrl}/api/master-data/saving-reasons/${id}`);
   }
 
   getProductGroups(search?: string): Observable<ProductGroup[]> {
@@ -114,9 +106,4 @@ export class MasterDataService {
     );
   }
 
-  deleteProductGroup(id: number): Observable<void> {
-    return this.http.delete<void>(
-      `${API_CONFIG.baseUrl}/api/master-data/product-groups/${id}`
-    );
-  }
 }

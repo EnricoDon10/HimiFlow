@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 var databaseProvider = builder.Configuration["Database:Provider"]?.Trim() ?? "SQLite";
@@ -19,16 +20,13 @@ var requireHttps = builder.Configuration.GetValue(
     "Security:RequireHttps",
     !builder.Environment.IsDevelopment());
 var reverseProxyEnabled = builder.Configuration.GetValue("ReverseProxy:Enabled", false);
-var licenseEnforcementEnabled = builder.Configuration.GetValue<bool?>("License:EnforcementEnabled")
-    ?? !builder.Environment.IsDevelopment();
-
-if (licenseEnforcementEnabled &&
-    !builder.Environment.IsDevelopment() &&
-    string.IsNullOrWhiteSpace(builder.Configuration["License:InstallationId"]))
-{
-    throw new InvalidOperationException(
-        "License:InstallationId muss in Production bei aktiver Lizenzdurchsetzung konfiguriert sein.");
-}
+builder.Services.AddOptions<ProductionConfigurationOptions>()
+    .Configure(options =>
+    {
+        options.Apply(ProductionConfigurationOptions.From(builder.Configuration, builder.Environment));
+    })
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<ProductionConfigurationOptions>, ProductionConfigurationValidator>();
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -280,6 +278,10 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Force ValidateOnStart before migrations/seeding so an unsafe Production
+// configuration fails before any application work is performed.
+_ = app.Services.GetRequiredService<IOptions<ProductionConfigurationOptions>>().Value;
 
 var migrateCommand = args.Any(argument => string.Equals(argument, "--migrate", StringComparison.OrdinalIgnoreCase));
 var seedCommand = args.Any(argument => string.Equals(argument, "--seed", StringComparison.OrdinalIgnoreCase));

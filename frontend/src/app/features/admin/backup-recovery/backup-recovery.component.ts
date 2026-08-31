@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { BackupStatus } from '../../../core/models/backup.model';
 import { BackupRecoveryService } from '../../../core/services/backup-recovery.service';
 
@@ -26,7 +27,7 @@ export class BackupRecoveryComponent implements OnInit {
   load(): void {
     this.isLoading.set(true);
     this.errorMessage.set(null);
-    this.backupService.getStatus().toPromise().then(status => {
+    firstValueFrom(this.backupService.getStatus()).then(status => {
       this.status.set(status ?? null);
       this.isLoading.set(false);
     }).catch(error => {

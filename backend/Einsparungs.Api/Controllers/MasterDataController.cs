@@ -80,7 +80,7 @@ public sealed class MasterDataController : ControllerBase
         var errors = await ValidateTeamAsync(input, null, cancellationToken);
         if (errors.Count > 0)
         {
-            return BadRequest(new { errors });
+            return BadRequest(ApiProblem.Validation(HttpContext, errors));
         }
 
         var team = new Team
@@ -91,10 +91,7 @@ public sealed class MasterDataController : ControllerBase
             IsActive = true
         };
         db.Teams.Add(team);
-        await db.SaveChangesAsync(cancellationToken);
-
-        AddAudit("Team", team.Id.ToString(), "Created", null, Snapshot(team));
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveWithAuditAsync("Team", () => team.Id.ToString(), "Created", null, () => Snapshot(team), cancellationToken);
 
         return CreatedAtAction(nameof(GetManagedTeams), new { id = team.Id }, ToResponse(team, 0));
     }
@@ -116,17 +113,14 @@ public sealed class MasterDataController : ControllerBase
         var errors = await ValidateTeamAsync(input, id, cancellationToken);
         if (errors.Count > 0)
         {
-            return BadRequest(new { errors });
+            return BadRequest(ApiProblem.Validation(HttpContext, errors));
         }
 
         var oldValues = Snapshot(team);
         team.Code = input.Code;
         team.Name = input.Name;
         team.DisplayName = input.DisplayName;
-        await db.SaveChangesAsync(cancellationToken);
-
-        AddAudit("Team", team.Id.ToString(), "Updated", oldValues, Snapshot(team));
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveWithAuditAsync("Team", () => team.Id.ToString(), "Updated", oldValues, () => Snapshot(team), cancellationToken);
 
         var activeUserCount = await db.Users.CountAsync(
             user => user.TeamId == team.Id && user.IsActive && !user.IsDeleted,
@@ -148,9 +142,7 @@ public sealed class MasterDataController : ControllerBase
         {
             var oldValues = Snapshot(team);
             team.IsActive = true;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("Team", team.Id.ToString(), "Activated", oldValues, Snapshot(team));
-            await db.SaveChangesAsync(cancellationToken);
+            await SaveWithAuditAsync("Team", () => team.Id.ToString(), "Activated", oldValues, () => Snapshot(team), cancellationToken);
         }
 
         var activeUserCount = await db.Users.CountAsync(
@@ -181,42 +173,10 @@ public sealed class MasterDataController : ControllerBase
         {
             var oldValues = Snapshot(team);
             team.IsActive = false;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("Team", team.Id.ToString(), "Deactivated", oldValues, Snapshot(team));
-            await db.SaveChangesAsync(cancellationToken);
+            await SaveWithAuditAsync("Team", () => team.Id.ToString(), "Deactivated", oldValues, () => Snapshot(team), cancellationToken);
         }
 
         return Ok(ToResponse(team, activeUserCount));
-    }
-
-    [HttpDelete("teams/{id:int}")]
-    [Authorize(Roles = ApplicationRoles.FachAdmin)]
-    public async Task<IActionResult> DeleteTeam(int id, CancellationToken cancellationToken)
-    {
-        var team = await db.Teams.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
-        if (team is null)
-        {
-            return NotFound();
-        }
-
-        var activeUserCount = await db.Users.CountAsync(
-            user => user.TeamId == team.Id && user.IsActive && !user.IsDeleted,
-            cancellationToken);
-        if (activeUserCount > 0)
-        {
-            return TeamHasActiveUsers(activeUserCount, "Team kann nicht gelöscht werden");
-        }
-
-        if (team.IsActive)
-        {
-            var oldValues = Snapshot(team);
-            team.IsActive = false;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("Team", team.Id.ToString(), "Deleted", oldValues, Snapshot(team));
-            await db.SaveChangesAsync(cancellationToken);
-        }
-
-        return NoContent();
     }
 
     [HttpGet("saving-reasons")]
@@ -256,9 +216,10 @@ public sealed class MasterDataController : ControllerBase
         [FromBody] SavingReasonSaveRequest request,
         CancellationToken cancellationToken)
     {
-        var name = request.Name?.Trim() ?? string.Empty;
+        var name = MasterDataNormalizer.ForStorage(request.Name);
+        var normalizedName = MasterDataNormalizer.ForComparison(name);
         var duplicateReason = await db.SavingReasons
-            .FirstOrDefaultAsync(reason => reason.Name.ToLower() == name.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(reason => reason.Name.ToUpper() == normalizedName, cancellationToken);
         if (duplicateReason is not null && !duplicateReason.IsActive)
         {
             return InactiveMasterDataExists("SavingReason", duplicateReason.Id, duplicateReason.Name);
@@ -267,14 +228,12 @@ public sealed class MasterDataController : ControllerBase
         var errors = await ValidateSavingReasonAsync(name, null, cancellationToken);
         if (errors.Count > 0)
         {
-            return BadRequest(new { errors });
+            return BadRequest(ApiProblem.Validation(HttpContext, errors));
         }
 
         var reason = new SavingReason { Name = name, IsActive = true };
         db.SavingReasons.Add(reason);
-        await db.SaveChangesAsync(cancellationToken);
-        AddAudit("SavingReason", reason.Id.ToString(), "Created", null, Snapshot(reason));
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveWithAuditAsync("SavingReason", () => reason.Id.ToString(), "Created", null, () => Snapshot(reason), cancellationToken);
 
         return CreatedAtAction(nameof(GetManagedSavingReasons), new { id = reason.Id }, ToResponse(reason, 0));
     }
@@ -292,18 +251,16 @@ public sealed class MasterDataController : ControllerBase
             return NotFound();
         }
 
-        var name = request.Name?.Trim() ?? string.Empty;
+        var name = MasterDataNormalizer.ForStorage(request.Name);
         var errors = await ValidateSavingReasonAsync(name, id, cancellationToken);
         if (errors.Count > 0)
         {
-            return BadRequest(new { errors });
+            return BadRequest(ApiProblem.Validation(HttpContext, errors));
         }
 
         var oldValues = Snapshot(reason);
         reason.Name = name;
-        await db.SaveChangesAsync(cancellationToken);
-        AddAudit("SavingReason", reason.Id.ToString(), "Updated", oldValues, Snapshot(reason));
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveWithAuditAsync("SavingReason", () => reason.Id.ToString(), "Updated", oldValues, () => Snapshot(reason), cancellationToken);
 
         var count = await db.SavingsEntries.CountAsync(
             entry => entry.SavingReasonId == reason.Id && !entry.IsDeleted,
@@ -325,9 +282,7 @@ public sealed class MasterDataController : ControllerBase
         {
             var oldValues = Snapshot(reason);
             reason.IsActive = true;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("SavingReason", reason.Id.ToString(), "Activated", oldValues, Snapshot(reason));
-            await db.SaveChangesAsync(cancellationToken);
+            await SaveWithAuditAsync("SavingReason", () => reason.Id.ToString(), "Activated", oldValues, () => Snapshot(reason), cancellationToken);
         }
 
         var count = await db.SavingsEntries.CountAsync(
@@ -350,37 +305,12 @@ public sealed class MasterDataController : ControllerBase
         {
             var oldValues = Snapshot(reason);
             reason.IsActive = false;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("SavingReason", reason.Id.ToString(), "Deactivated", oldValues, Snapshot(reason));
-            await db.SaveChangesAsync(cancellationToken);
+            await SaveWithAuditAsync("SavingReason", () => reason.Id.ToString(), "Deactivated", oldValues, () => Snapshot(reason), cancellationToken);
         }
-
         var count = await db.SavingsEntries.CountAsync(
             entry => entry.SavingReasonId == reason.Id && !entry.IsDeleted,
             cancellationToken);
         return Ok(ToResponse(reason, count));
-    }
-
-    [HttpDelete("saving-reasons/{id:int}")]
-    [Authorize(Roles = ApplicationRoles.FachAdmin)]
-    public async Task<IActionResult> DeleteSavingReason(int id, CancellationToken cancellationToken)
-    {
-        var reason = await db.SavingReasons.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
-        if (reason is null)
-        {
-            return NotFound();
-        }
-
-        if (reason.IsActive)
-        {
-            var oldValues = Snapshot(reason);
-            reason.IsActive = false;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("SavingReason", reason.Id.ToString(), "Deleted", oldValues, Snapshot(reason));
-            await db.SaveChangesAsync(cancellationToken);
-        }
-
-        return NoContent();
     }
 
     [HttpGet("product-groups")]
@@ -430,9 +360,10 @@ public sealed class MasterDataController : ControllerBase
         [FromBody] ProductGroupSaveRequest request,
         CancellationToken cancellationToken)
     {
-        var displayValue = request.DisplayValue?.Trim() ?? string.Empty;
+        var displayValue = MasterDataNormalizer.ForStorage(request.DisplayValue);
+        var normalizedDisplayValue = MasterDataNormalizer.ForComparison(displayValue);
         var duplicateGroup = await db.ProductGroups
-            .FirstOrDefaultAsync(group => group.DisplayValue.ToLower() == displayValue.ToLower(), cancellationToken);
+            .FirstOrDefaultAsync(group => group.DisplayValue.ToUpper() == normalizedDisplayValue, cancellationToken);
         if (duplicateGroup is not null && !duplicateGroup.IsActive)
         {
             return InactiveMasterDataExists("ProductGroup", duplicateGroup.Id, duplicateGroup.DisplayValue);
@@ -441,7 +372,7 @@ public sealed class MasterDataController : ControllerBase
         var errors = await ValidateProductGroupAsync(displayValue, null, cancellationToken);
         if (errors.Count > 0)
         {
-            return BadRequest(new { errors });
+            return BadRequest(ApiProblem.Validation(HttpContext, errors));
         }
 
         var group = new ProductGroup
@@ -451,9 +382,7 @@ public sealed class MasterDataController : ControllerBase
             IsActive = true
         };
         db.ProductGroups.Add(group);
-        await db.SaveChangesAsync(cancellationToken);
-        AddAudit("ProductGroup", group.Id.ToString(), "Created", null, Snapshot(group));
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveWithAuditAsync("ProductGroup", () => group.Id.ToString(), "Created", null, () => Snapshot(group), cancellationToken);
 
         return CreatedAtAction(nameof(GetManagedProductGroups), new { id = group.Id }, ToResponse(group, 0));
     }
@@ -471,18 +400,16 @@ public sealed class MasterDataController : ControllerBase
             return NotFound();
         }
 
-        var displayValue = request.DisplayValue?.Trim() ?? string.Empty;
+        var displayValue = MasterDataNormalizer.ForStorage(request.DisplayValue);
         var errors = await ValidateProductGroupAsync(displayValue, id, cancellationToken);
         if (errors.Count > 0)
         {
-            return BadRequest(new { errors });
+            return BadRequest(ApiProblem.Validation(HttpContext, errors));
         }
 
         var oldValues = Snapshot(group);
         group.DisplayValue = displayValue;
-        await db.SaveChangesAsync(cancellationToken);
-        AddAudit("ProductGroup", group.Id.ToString(), "Updated", oldValues, Snapshot(group));
-        await db.SaveChangesAsync(cancellationToken);
+        await SaveWithAuditAsync("ProductGroup", () => group.Id.ToString(), "Updated", oldValues, () => Snapshot(group), cancellationToken);
 
         var count = await db.SavingsEntries.CountAsync(
             entry => entry.ProductGroupId == group.Id && !entry.IsDeleted,
@@ -504,9 +431,7 @@ public sealed class MasterDataController : ControllerBase
         {
             var oldValues = Snapshot(group);
             group.IsActive = true;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("ProductGroup", group.Id.ToString(), "Activated", oldValues, Snapshot(group));
-            await db.SaveChangesAsync(cancellationToken);
+            await SaveWithAuditAsync("ProductGroup", () => group.Id.ToString(), "Activated", oldValues, () => Snapshot(group), cancellationToken);
         }
 
         var count = await db.SavingsEntries.CountAsync(
@@ -529,37 +454,12 @@ public sealed class MasterDataController : ControllerBase
         {
             var oldValues = Snapshot(group);
             group.IsActive = false;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("ProductGroup", group.Id.ToString(), "Deactivated", oldValues, Snapshot(group));
-            await db.SaveChangesAsync(cancellationToken);
+            await SaveWithAuditAsync("ProductGroup", () => group.Id.ToString(), "Deactivated", oldValues, () => Snapshot(group), cancellationToken);
         }
-
         var count = await db.SavingsEntries.CountAsync(
             entry => entry.ProductGroupId == group.Id && !entry.IsDeleted,
             cancellationToken);
         return Ok(ToResponse(group, count));
-    }
-
-    [HttpDelete("product-groups/{id:int}")]
-    [Authorize(Roles = ApplicationRoles.FachAdmin)]
-    public async Task<IActionResult> DeleteProductGroup(int id, CancellationToken cancellationToken)
-    {
-        var group = await db.ProductGroups.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
-        if (group is null)
-        {
-            return NotFound();
-        }
-
-        if (group.IsActive)
-        {
-            var oldValues = Snapshot(group);
-            group.IsActive = false;
-            await db.SaveChangesAsync(cancellationToken);
-            AddAudit("ProductGroup", group.Id.ToString(), "Deleted", oldValues, Snapshot(group));
-            await db.SaveChangesAsync(cancellationToken);
-        }
-
-        return NoContent();
     }
 
     private Task<Team?> FindTeamDuplicateAsync(
@@ -567,13 +467,15 @@ public sealed class MasterDataController : ControllerBase
         int? existingId,
         CancellationToken cancellationToken)
     {
+        var normalizedDisplayName = MasterDataNormalizer.ForComparison(input.DisplayName);
+        var normalizedCode = MasterDataNormalizer.ForComparison(input.Code);
         return input.IsOrganizationUnit
             ? db.Teams.FirstOrDefaultAsync(
-                team => team.DisplayName.ToLower() == input.DisplayName.ToLower()
+                team => team.DisplayName.ToUpper() == normalizedDisplayName
                     && (!existingId.HasValue || team.Id != existingId.Value),
                 cancellationToken)
             : db.Teams.FirstOrDefaultAsync(
-                team => team.Code.ToLower() == input.Code.ToLower()
+                team => team.Code.ToUpper() == normalizedCode
                     && (!existingId.HasValue || team.Id != existingId.Value),
                 cancellationToken);
     }
@@ -601,7 +503,7 @@ public sealed class MasterDataController : ControllerBase
 
     private static TeamInput ResolveTeamInput(TeamSaveRequest request, Team? existingTeam)
     {
-        var organizationUnit = request.OrganizationUnit?.Trim() ?? string.Empty;
+        var organizationUnit = MasterDataNormalizer.ForStorage(request.OrganizationUnit);
         if (request.OrganizationUnit is not null)
         {
             var code = existingTeam?.Code;
@@ -617,8 +519,8 @@ public sealed class MasterDataController : ControllerBase
             return new TeamInput(code, name, organizationUnit, true);
         }
 
-        var legacyCode = request.Code?.Trim() ?? string.Empty;
-        var legacyName = request.Name?.Trim() ?? string.Empty;
+        var legacyCode = MasterDataNormalizer.ForStorage(request.Code);
+        var legacyName = MasterDataNormalizer.ForStorage(request.Name);
         return new TeamInput(legacyCode, legacyName, BuildDisplayName(legacyName, legacyCode), false);
     }
 
@@ -640,8 +542,9 @@ public sealed class MasterDataController : ControllerBase
                 errors.Add("Organisationseinheit darf maximal 200 Zeichen lang sein.");
             }
 
+            var normalizedDisplayName = MasterDataNormalizer.ForComparison(input.DisplayName);
             if (errors.Count == 0 && await db.Teams.AnyAsync(
-                    team => team.DisplayName.ToLower() == input.DisplayName.ToLower()
+                    team => team.DisplayName.ToUpper() == normalizedDisplayName
                         && (!existingId.HasValue || team.Id != existingId.Value),
                     cancellationToken))
             {
@@ -653,6 +556,7 @@ public sealed class MasterDataController : ControllerBase
 
         var code = input.Code;
         var name = input.Name;
+        var normalizedCode = MasterDataNormalizer.ForComparison(code);
         if (string.IsNullOrWhiteSpace(code))
         {
             errors.Add("Teamcode ist erforderlich.");
@@ -672,7 +576,7 @@ public sealed class MasterDataController : ControllerBase
         }
 
         if (errors.Count == 0 && await db.Teams.AnyAsync(
-                team => team.Code.ToLower() == code.ToLower() && (!existingId.HasValue || team.Id != existingId.Value),
+                team => team.Code.ToUpper() == normalizedCode && (!existingId.HasValue || team.Id != existingId.Value),
                 cancellationToken))
         {
             errors.Add("Dieser Teamcode ist bereits vergeben.");
@@ -693,8 +597,9 @@ public sealed class MasterDataController : ControllerBase
             errors.Add("Einspargrund darf maximal 300 Zeichen lang sein.");
         }
 
+        var normalizedName = MasterDataNormalizer.ForComparison(name);
         if (errors.Count == 0 && await db.SavingReasons.AnyAsync(
-                reason => reason.Name.ToLower() == name.ToLower() && (!existingId.HasValue || reason.Id != existingId.Value),
+                reason => reason.Name.ToUpper() == normalizedName && (!existingId.HasValue || reason.Id != existingId.Value),
                 cancellationToken))
         {
             errors.Add("Dieser Einspargrund existiert bereits.");
@@ -715,8 +620,9 @@ public sealed class MasterDataController : ControllerBase
             errors.Add("Produktgruppe darf maximal 500 Zeichen lang sein.");
         }
 
+        var normalizedDisplayValue = MasterDataNormalizer.ForComparison(displayValue);
         if (errors.Count == 0 && await db.ProductGroups.AnyAsync(
-                group => group.DisplayValue.ToLower() == displayValue.ToLower() && (!existingId.HasValue || group.Id != existingId.Value),
+                group => group.DisplayValue.ToUpper() == normalizedDisplayValue && (!existingId.HasValue || group.Id != existingId.Value),
                 cancellationToken))
         {
             errors.Add("Diese Produktgruppe existiert bereits.");
@@ -775,6 +681,21 @@ public sealed class MasterDataController : ControllerBase
         group.DisplayValue,
         group.IsActive
     };
+
+    private async Task SaveWithAuditAsync(
+        string entityName,
+        Func<string> entityId,
+        string action,
+        object? oldValues,
+        Func<object?> newValues,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        AddAudit(entityName, entityId(), action, oldValues, newValues());
+        await db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
 
     private void AddAudit(string entityName, string entityId, string action, object? oldValues, object? newValues)
     {

@@ -144,7 +144,7 @@ public sealed class MasterDataControllerTests
     }
 
     [TestMethod]
-    public async Task FachAdminCanCreateAndDeleteSingleFieldOrganizationUnit()
+    public async Task FachAdminCanCreateAndDeactivateSingleFieldOrganizationUnit()
     {
         await using var fixture = await Fixture.CreateAsync();
 
@@ -155,9 +155,9 @@ public sealed class MasterDataControllerTests
         Assert.IsNotNull(team);
         Assert.AreEqual("ORG-01 - Hilfsmittelversorgung", team.DisplayName);
 
-        var delete = await fixture.Controller.DeleteTeam(team.Id, CancellationToken.None);
+        var deactivate = await fixture.Controller.DeactivateTeam(team.Id, CancellationToken.None);
 
-        Assert.IsInstanceOfType(delete, typeof(NoContentResult));
+        Assert.IsTrue(((OkObjectResult)deactivate.Result!).Value is TeamResponse { IsActive: false });
         Assert.IsFalse(await fixture.Db.Teams.Where(item => item.Id == team.Id).Select(item => item.IsActive).SingleAsync());
         var managed = await fixture.Controller.GetManagedTeams(CancellationToken.None);
         var managedTeams = ((OkObjectResult)managed.Result!).Value as IReadOnlyList<TeamResponse>;
@@ -165,7 +165,7 @@ public sealed class MasterDataControllerTests
         Assert.IsTrue(managedTeams.Any(item => item.Id == team.Id && !item.IsActive));
         var reactivated = await fixture.Controller.ActivateTeam(team.Id, CancellationToken.None);
         Assert.IsTrue(((OkObjectResult)reactivated.Result!).Value is TeamResponse { IsActive: true });
-        Assert.IsTrue(await fixture.Db.AuditLogs.AnyAsync(log => log.EntityName == "Team" && log.EntityId == team.Id.ToString() && log.Action == "Deleted"));
+        Assert.IsTrue(await fixture.Db.AuditLogs.AnyAsync(log => log.EntityName == "Team" && log.EntityId == team.Id.ToString() && log.Action == "Deactivated"));
     }
 
     private sealed class Fixture : IAsyncDisposable

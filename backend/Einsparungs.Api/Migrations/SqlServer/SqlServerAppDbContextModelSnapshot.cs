@@ -151,6 +151,10 @@ namespace Einsparungs.Api.Migrations.SqlServer
 
                     b.HasIndex("AppRoleId");
 
+                    b.HasIndex("AppUserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_UserRoles_AppUserId_Unique");
+
                     b.ToTable("UserRoles");
                 });
 

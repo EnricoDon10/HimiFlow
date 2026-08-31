@@ -1,6 +1,6 @@
 # Rechtliche und vertragliche Checkliste für den Verkauf
 
-Stand: 29.08.2026
+Stand: 31.08.2026
 
 Diese Checkliste kennzeichnet Produkt- und Vertragsentscheidungen. Sie ist keine Rechtsberatung. Vor Angebot, Vertrag und Auslieferung sollten ein auf IT-/Datenschutzrecht spezialisierter Rechtsanwalt sowie Datenschutz und IT-Sicherheit des Kunden die Unterlagen freigeben.
 
@@ -17,7 +17,7 @@ HimiFlow besitzt die ohne Anmeldung erreichbare Seite `/legal`. Die Werte werden
 
 § 5 DDG verlangt für geschäftsmäßige digitale Dienste leicht erkennbare, unmittelbar erreichbare und ständig verfügbare Informationen; die konkrete Einordnung der intern betriebenen Kundenanwendung muss rechtlich geprüft werden. Quelle: [§ 5 Digitale-Dienste-Gesetz](https://www.gesetze-im-internet.de/ddg/__5.html).
 
-Aktueller Status: Anbieterangaben fehlen bewusst. Die UI zeigt deshalb „nicht konfiguriert“ und verhindert so ein scheinbar fertiges Impressum mit Fantasiedaten.
+Aktueller Local-Edition-Status: Die Anbieterangaben der ME Digitale GbR Dirr & Mancuso, Anschrift, E-Mail, Telefonnummern, Gesellschafter und Inhaltsverantwortliche sind konfiguriert. Die USt-ID bleibt bis zur rechtlich freigegebenen echten Nummer leer und wird deshalb nicht angezeigt. Die formale rechtliche Prüfung vor dem Verkauf bleibt erforderlich.
 
 ## 2. Datenschutzpaket
 
@@ -58,7 +58,7 @@ Die Anwendung kann den Jahreslizenzstatus technisch abbilden; sie ersetzt kein v
 
 ## 4. Aktuelle proprietäre Lizenz – Rechtekette prüfen
 
-Die aktuelle `LICENSE` ist proprietär für die **ME Digitale GbR** und die Assembly-Metadaten deklarieren keine MIT-Lizenz mehr. Für die Verkaufsfreigabe bleibt trotzdem die Rechtekette zu prüfen:
+Die aktuelle `LICENSE` ist proprietär für die **ME Digitale GbR Dirr & Mancuso** und die Assembly-Metadaten deklarieren keine MIT-Lizenz mehr. Für die Verkaufsfreigabe bleibt trotzdem die Rechtekette zu prüfen:
 
 - Bereits wirksam unter früheren Lizenzen erhaltene Kopien behalten grundsätzlich die eingeräumten Rechte.
 - Künftige Versionen können nur dann sicher proprietär lizenziert werden, wenn die notwendige Rechteinhaberschaft an sämtlichen Beiträgen geklärt ist.

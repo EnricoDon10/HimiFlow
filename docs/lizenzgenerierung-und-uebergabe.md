@@ -104,3 +104,18 @@ Die Installation wird zusätzlich als Audit-Ereignis protokolliert. Bei einer ab
 ## Test- und Produktionsabgrenzung
 
 Die bisherige Viactiv-Lizenz ist ausschließlich ein lokaler Testschlüssel mit kurzem Laufzeitfenster. Für echte Kunden immer ein separates Anbieter-Schlüsselpaar beziehungsweise eine kontrollierte Produktionsschlüsselverwaltung verwenden. Test-Private-Keys gehören nicht in das Repository und nicht in eine Kundeninstallation.
+
+## Aktueller lokaler VIACTIV-Pilottest
+
+Für den Pilottest wurde mit einem ausschließlich lokalen Test-Schlüsselpaar folgende Lizenz erzeugt und per Signaturprüfung verifiziert:
+
+- Lizenz-ID: `TEST-VIACTIV-2026-0908-01`
+- Kunde: `VIACTIV Krankenkasse`
+- Installations-ID: `viactiv-test-01`
+- Gültig: `31.08.2026 00:00:00 UTC` bis `08.09.2026 23:59:59 UTC`
+- Grace-Ende: `09.09.2026 23:59:59 UTC`
+- Benutzerlimit: `50`, Feature: `core`
+
+Die Dateien liegen lokal unter `.local-secrets/himiflow-test-licensing/` und sind durch `.gitignore` vom Repository ausgeschlossen. Der Public-Key sowie `License:InstallationId=viactiv-test-01` und `License:EnforcementEnabled=true` sind in den .NET User Secrets der API hinterlegt. Der vollständige Schlüssel und jeder Private Key werden bewusst nicht dokumentiert.
+
+Da zum Zeitpunkt des Freeze-Patches keine lokale API-Instanz lief, ist der letzte Schritt manuell über **SystemAdmin → Lizenzverwaltung → Lizenz installieren** auszuführen. Dazu den Inhalt der Datei `TEST-VIACTIV-2026-0908-01.txt` einfügen. Anschließend müssen Status `ACTIVE`, Kunde, Lizenz-ID, Laufzeit, Grace-Ende und Limit 50 sichtbar sein; zusätzlich ist der Audit-Eintrag `License / Installed` zu prüfen.

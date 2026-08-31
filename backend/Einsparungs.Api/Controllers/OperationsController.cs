@@ -30,7 +30,22 @@ public sealed class OperationsController : ControllerBase
     [HttpGet("backup-status")]
     public ActionResult<BackupStatusResponse> GetBackupStatus()
     {
-        return Ok(backupStatusEvaluator.Evaluate());
+        try
+        {
+            return Ok(backupStatusEvaluator.Evaluate());
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status503ServiceUnavailable,
+                Title = "Backup-Status nicht verfügbar",
+                Detail = $"Das Backup-Verzeichnis konnte nicht gelesen werden: {exception.Message}",
+                Instance = HttpContext.Request.Path
+            };
+            problem.Extensions["traceId"] = HttpContext.TraceIdentifier;
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, problem);
+        }
     }
 
     [HttpPost("backups")]

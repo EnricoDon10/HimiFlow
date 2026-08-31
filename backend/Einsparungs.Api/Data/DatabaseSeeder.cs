@@ -16,6 +16,7 @@ public static class DatabaseSeeder
     {
         if (applyMigrations)
         {
+            await DatabasePreflight.ValidateBeforeMigrationAsync(db);
             await db.Database.MigrateAsync();
         }
 

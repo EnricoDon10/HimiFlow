@@ -1,6 +1,6 @@
 # HimiFlow – Backend-Betriebsdokumentation
 
-Stand: 28.08.2026 · Produktversion 1.0.0 · Reifegrad 4/5
+Stand: 31.08.2026 · Produktversion 0.9.0-rc.1 · Reifegrad 4/5
 
 ## 1. Geltungsbereich
 
@@ -160,11 +160,11 @@ Details und offene Betreiberentscheidungen stehen im [Datenschutz- und Berechtig
 
 ## 12. Produktinformation und Drittkomponenten
 
-Die Route `/legal` ist ohne Anmeldung erreichbar und lädt die Angaben aus `Legal:*`. Solange Name, Anschrift und E-Mail fehlen, zeigt sie deutlich „nicht konfiguriert“. Vor Auslieferung müssen die rechtlich freigegebenen Anbieter-/Betreiberangaben eingetragen werden.
+Die Route `/legal` ist ohne Anmeldung erreichbar und lädt die Angaben aus `Legal:*`. Die aktuelle Local Edition enthält die konfigurierten Anbieterangaben der ME Digitale GbR Dirr & Mancuso, beide Gesellschafter, beide Telefonnummern und die Inhaltsverantwortlichen. Telefonnummern werden als `tel:`-Links ausgegeben. `Legal:VatId` bleibt optional; solange der Wert leer ist, wird kein USt-ID-Abschnitt angezeigt. Bestehende Installationen mit nur `Legal:Phone` bleiben kompatibel. Solange Name, Anschrift und E-Mail fehlen, zeigt die Seite deutlich „nicht konfiguriert“.
 
 `deploy/Generate-Sbom.ps1` erzeugt CycloneDX-SBOMs für Backend und Frontend. Lizenzhinweise stehen in `THIRD-PARTY-NOTICES.md`; das Frontend erzeugt zusätzlich `3rdpartylicenses.txt`.
 
-Die aktuelle Repository-Datei `LICENSE` ist proprietär für die ME Digitale GbR. Vor Kundenüberlassung sind die Rechtekette, frühere Lizenzstände und der Endkundenvertrag trotzdem juristisch zu prüfen; die technische Dokumentation ersetzt diese Entscheidung nicht.
+Die aktuelle Repository-Datei `LICENSE` ist proprietär für die ME Digitale GbR Dirr & Mancuso. Vor Kundenüberlassung sind die Rechtekette, frühere Lizenzstände und der Endkundenvertrag trotzdem juristisch zu prüfen; die technische Dokumentation ersetzt diese Entscheidung nicht.
 
 ## 13. Phase Inbetriebnahme
 

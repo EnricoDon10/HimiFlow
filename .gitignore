@@ -79,6 +79,9 @@ web_modules/
 .env.production.local
 .env.local
 
+# Local pilot secrets and generated test licenses (never commit)
+.local-secrets/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

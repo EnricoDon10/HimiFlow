@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace Einsparungs.Api.Security;
 
 /// <summary>
@@ -10,5 +12,5 @@ public static class MasterDataNormalizer
     public static string ForStorage(string? value) => value?.Trim() ?? string.Empty;
 
     public static string ForComparison(string? value) =>
-        ForStorage(value).ToUpperInvariant();
+        ForStorage(value).Normalize(NormalizationForm.FormC).ToUpperInvariant();
 }

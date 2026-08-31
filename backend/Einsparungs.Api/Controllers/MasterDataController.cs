@@ -217,9 +217,7 @@ public sealed class MasterDataController : ControllerBase
         CancellationToken cancellationToken)
     {
         var name = MasterDataNormalizer.ForStorage(request.Name);
-        var normalizedName = MasterDataNormalizer.ForComparison(name);
-        var duplicateReason = await db.SavingReasons
-            .FirstOrDefaultAsync(reason => reason.Name.ToUpper() == normalizedName, cancellationToken);
+        var duplicateReason = await FindSavingReasonDuplicateAsync(name, null, cancellationToken);
         if (duplicateReason is not null && !duplicateReason.IsActive)
         {
             return InactiveMasterDataExists("SavingReason", duplicateReason.Id, duplicateReason.Name);
@@ -361,9 +359,7 @@ public sealed class MasterDataController : ControllerBase
         CancellationToken cancellationToken)
     {
         var displayValue = MasterDataNormalizer.ForStorage(request.DisplayValue);
-        var normalizedDisplayValue = MasterDataNormalizer.ForComparison(displayValue);
-        var duplicateGroup = await db.ProductGroups
-            .FirstOrDefaultAsync(group => group.DisplayValue.ToUpper() == normalizedDisplayValue, cancellationToken);
+        var duplicateGroup = await FindProductGroupDuplicateAsync(displayValue, null, cancellationToken);
         if (duplicateGroup is not null && !duplicateGroup.IsActive)
         {
             return InactiveMasterDataExists("ProductGroup", duplicateGroup.Id, duplicateGroup.DisplayValue);
@@ -462,22 +458,43 @@ public sealed class MasterDataController : ControllerBase
         return Ok(ToResponse(group, count));
     }
 
-    private Task<Team?> FindTeamDuplicateAsync(
+    private async Task<Team?> FindTeamDuplicateAsync(
         TeamInput input,
         int? existingId,
         CancellationToken cancellationToken)
     {
         var normalizedDisplayName = MasterDataNormalizer.ForComparison(input.DisplayName);
         var normalizedCode = MasterDataNormalizer.ForComparison(input.Code);
-        return input.IsOrganizationUnit
-            ? db.Teams.FirstOrDefaultAsync(
-                team => team.DisplayName.ToUpper() == normalizedDisplayName
-                    && (!existingId.HasValue || team.Id != existingId.Value),
-                cancellationToken)
-            : db.Teams.FirstOrDefaultAsync(
-                team => team.Code.ToUpper() == normalizedCode
-                    && (!existingId.HasValue || team.Id != existingId.Value),
-                cancellationToken);
+        var teams = await db.Teams.AsNoTracking().ToListAsync(cancellationToken);
+        return teams.FirstOrDefault(team =>
+            (!existingId.HasValue || team.Id != existingId.Value) &&
+            (input.IsOrganizationUnit
+                ? MasterDataNormalizer.ForComparison(team.DisplayName) == normalizedDisplayName
+                : MasterDataNormalizer.ForComparison(team.Code) == normalizedCode));
+    }
+
+    private async Task<SavingReason?> FindSavingReasonDuplicateAsync(
+        string name,
+        int? existingId,
+        CancellationToken cancellationToken)
+    {
+        var normalizedName = MasterDataNormalizer.ForComparison(name);
+        var reasons = await db.SavingReasons.AsNoTracking().ToListAsync(cancellationToken);
+        return reasons.FirstOrDefault(reason =>
+            (!existingId.HasValue || reason.Id != existingId.Value) &&
+            MasterDataNormalizer.ForComparison(reason.Name) == normalizedName);
+    }
+
+    private async Task<ProductGroup?> FindProductGroupDuplicateAsync(
+        string displayValue,
+        int? existingId,
+        CancellationToken cancellationToken)
+    {
+        var normalizedDisplayValue = MasterDataNormalizer.ForComparison(displayValue);
+        var groups = await db.ProductGroups.AsNoTracking().ToListAsync(cancellationToken);
+        return groups.FirstOrDefault(group =>
+            (!existingId.HasValue || group.Id != existingId.Value) &&
+            MasterDataNormalizer.ForComparison(group.DisplayValue) == normalizedDisplayValue);
     }
 
     private ConflictObjectResult InactiveMasterDataExists(
@@ -542,11 +559,8 @@ public sealed class MasterDataController : ControllerBase
                 errors.Add("Organisationseinheit darf maximal 200 Zeichen lang sein.");
             }
 
-            var normalizedDisplayName = MasterDataNormalizer.ForComparison(input.DisplayName);
-            if (errors.Count == 0 && await db.Teams.AnyAsync(
-                    team => team.DisplayName.ToUpper() == normalizedDisplayName
-                        && (!existingId.HasValue || team.Id != existingId.Value),
-                    cancellationToken))
+            var duplicateTeam = await FindTeamDuplicateAsync(input, existingId, cancellationToken);
+            if (errors.Count == 0 && duplicateTeam is not null)
             {
                 errors.Add("Diese Organisationseinheit existiert bereits.");
             }
@@ -556,7 +570,6 @@ public sealed class MasterDataController : ControllerBase
 
         var code = input.Code;
         var name = input.Name;
-        var normalizedCode = MasterDataNormalizer.ForComparison(code);
         if (string.IsNullOrWhiteSpace(code))
         {
             errors.Add("Teamcode ist erforderlich.");
@@ -575,9 +588,8 @@ public sealed class MasterDataController : ControllerBase
             errors.Add("Teamname darf maximal 150 Zeichen lang sein.");
         }
 
-        if (errors.Count == 0 && await db.Teams.AnyAsync(
-                team => team.Code.ToUpper() == normalizedCode && (!existingId.HasValue || team.Id != existingId.Value),
-                cancellationToken))
+        var duplicateTeamByCode = await FindTeamDuplicateAsync(input, existingId, cancellationToken);
+        if (errors.Count == 0 && duplicateTeamByCode is not null)
         {
             errors.Add("Dieser Teamcode ist bereits vergeben.");
         }
@@ -597,10 +609,8 @@ public sealed class MasterDataController : ControllerBase
             errors.Add("Einspargrund darf maximal 300 Zeichen lang sein.");
         }
 
-        var normalizedName = MasterDataNormalizer.ForComparison(name);
-        if (errors.Count == 0 && await db.SavingReasons.AnyAsync(
-                reason => reason.Name.ToUpper() == normalizedName && (!existingId.HasValue || reason.Id != existingId.Value),
-                cancellationToken))
+        var duplicateReason = await FindSavingReasonDuplicateAsync(name, existingId, cancellationToken);
+        if (errors.Count == 0 && duplicateReason is not null)
         {
             errors.Add("Dieser Einspargrund existiert bereits.");
         }
@@ -620,10 +630,8 @@ public sealed class MasterDataController : ControllerBase
             errors.Add("Produktgruppe darf maximal 500 Zeichen lang sein.");
         }
 
-        var normalizedDisplayValue = MasterDataNormalizer.ForComparison(displayValue);
-        if (errors.Count == 0 && await db.ProductGroups.AnyAsync(
-                group => group.DisplayValue.ToUpper() == normalizedDisplayValue && (!existingId.HasValue || group.Id != existingId.Value),
-                cancellationToken))
+        var duplicateGroup = await FindProductGroupDuplicateAsync(displayValue, existingId, cancellationToken);
+        if (errors.Count == 0 && duplicateGroup is not null)
         {
             errors.Add("Diese Produktgruppe existiert bereits.");
         }

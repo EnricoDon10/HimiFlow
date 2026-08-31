@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$OutputDirectory = (Join-Path (Split-Path $PSScriptRoot -Parent) "artifacts\sbom"),
-    [string]$ProductVersion = "1.0.0"
+    [string]$ProductVersion = "0.9.0-rc.1"
 )
 
 $ErrorActionPreference = "Stop"

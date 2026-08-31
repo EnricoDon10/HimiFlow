@@ -102,6 +102,37 @@ public sealed class MasterDataControllerTests
     }
 
     [TestMethod]
+    public async Task UnicodeDuplicateChecks_AreProviderIndependentAndKeepVisibleSpelling()
+    {
+        await using var fixture = await Fixture.CreateAsync();
+
+        var reasonCreate = await fixture.Controller.CreateSavingReason(
+            new SavingReasonSaveRequest("Änderung"), CancellationToken.None);
+        var reason = ((CreatedAtActionResult)reasonCreate.Result!).Value as SavingReasonResponse;
+        Assert.IsNotNull(reason);
+        Assert.AreEqual("Änderung", reason.Name);
+        var reasonDuplicate = await fixture.Controller.CreateSavingReason(
+            new SavingReasonSaveRequest("  änderung  "), CancellationToken.None);
+        Assert.IsInstanceOfType(reasonDuplicate.Result, typeof(BadRequestObjectResult));
+
+        var groupCreate = await fixture.Controller.CreateProductGroup(
+            new ProductGroupSaveRequest("ÜBERNAHME"), CancellationToken.None);
+        var group = ((CreatedAtActionResult)groupCreate.Result!).Value as ProductGroupResponse;
+        Assert.IsNotNull(group);
+        Assert.AreEqual("ÜBERNAHME", group.DisplayValue);
+        var groupDuplicate = await fixture.Controller.CreateProductGroup(
+            new ProductGroupSaveRequest(" übernahme "), CancellationToken.None);
+        Assert.IsInstanceOfType(groupDuplicate.Result, typeof(BadRequestObjectResult));
+
+        var teamCreate = await fixture.Controller.CreateTeam(
+            new TeamSaveRequest(OrganizationUnit: "ÜBERNAHME"), CancellationToken.None);
+        Assert.IsInstanceOfType(teamCreate.Result, typeof(CreatedAtActionResult));
+        var teamDuplicate = await fixture.Controller.CreateTeam(
+            new TeamSaveRequest(OrganizationUnit: " übernahme "), CancellationToken.None);
+        Assert.IsInstanceOfType(teamDuplicate.Result, typeof(BadRequestObjectResult));
+    }
+
+    [TestMethod]
     public async Task TeamWithActiveUsersCannotBeDeactivated()
     {
         await using var fixture = await Fixture.CreateAsync();

@@ -27,6 +27,9 @@
         <h2>Anbieter</h2>
         <p>
           <strong>{{ productInfo()!.legalNotice.providerName }}</strong>
+          @if (productInfo()!.legalNotice.shortName) {
+            <br />{{ productInfo()!.legalNotice.shortName }}
+          }
           @if (productInfo()!.legalNotice.legalForm) {
             <br />{{ productInfo()!.legalNotice.legalForm }}
           }
@@ -35,14 +38,30 @@
           }
         </p>
 
+        @if (productInfo()!.legalNotice.representedBy?.length) {
+          <h3>Vertreten durch die Gesellschafter</h3>
+          <ul>
+            @for (person of productInfo()!.legalNotice.representedBy; track person) {
+              <li>{{ person }}</li>
+            }
+          </ul>
+        }
+
         <dl>
           @if (productInfo()!.legalNotice.email) {
             <dt>E-Mail</dt>
             <dd><a [href]="'mailto:' + productInfo()!.legalNotice.email">{{ productInfo()!.legalNotice.email }}</a></dd>
           }
-          @if (productInfo()!.legalNotice.phone) {
+          @if (productInfo()!.legalNotice.phoneNumbers?.length) {
             <dt>Telefon</dt>
-            <dd>{{ productInfo()!.legalNotice.phone }}</dd>
+            <dd>
+              @for (phone of productInfo()!.legalNotice.phoneNumbers; track phone) {
+                <a class="phone-link" [href]="'tel:' + phone.replaceAll(' ', '')">{{ phone }}</a>
+              }
+            </dd>
+          } @else if (productInfo()!.legalNotice.phone) {
+            <dt>Telefon</dt>
+            <dd><a class="phone-link" [href]="'tel:' + productInfo()!.legalNotice.phone">{{ productInfo()!.legalNotice.phone }}</a></dd>
           }
           @if (productInfo()!.legalNotice.website) {
             <dt>Website</dt>
@@ -62,6 +81,21 @@
           }
         </dl>
       </section>
+
+      @if (productInfo()!.legalNotice.contentResponsible?.length) {
+        <section>
+          <h2>Verantwortlich für den Inhalt</h2>
+          @for (person of productInfo()!.legalNotice.contentResponsible; track person) {
+            <p class="compact-line">{{ person }}</p>
+          }
+          @if (productInfo()!.legalNotice.contentResponsibleRole) {
+            <p class="compact-line">{{ productInfo()!.legalNotice.contentResponsibleRole }}</p>
+          }
+          @for (line of productInfo()!.legalNotice.contentResponsibleAddressLines; track line) {
+            <p class="compact-line">{{ line }}</p>
+          }
+        </section>
+      }
     }
 
     <section>

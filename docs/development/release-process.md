@@ -4,7 +4,8 @@ Dieser Prozess gilt für die Local Edition und trennt reproduzierbare Softwareau
 
 ## Versionen
 
-- `0.9.x`: Pilot- und Abnahmestände, solange noch keine produktive Kundenumgebung freigegeben ist.
+- `0.9.0-rc.1`: aktueller Pilot-/Code-Freeze-Stand vor der Kundenabnahme.
+- `0.9.x`: weitere Pilot- und Abnahmestände, solange noch keine produktive Kundenumgebung freigegeben ist.
 - `1.0.0`: erste vertraglich freigegebene Kundeninstallation nach dokumentierter Abnahme.
 - Patch-Releases erhöhen nur die dritte Stelle und enthalten ausschließlich rückwärtskompatible Fehler- oder Sicherheitskorrekturen.
 

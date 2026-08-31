@@ -22,15 +22,17 @@ public sealed class PublicInfoController : ControllerBase
     {
         var providerName = Normalize(configuration["Legal:ProviderName"]);
         var email = Normalize(configuration["Legal:Email"]);
-        var addressLines = configuration
-            .GetSection("Legal:AddressLines")
-            .Get<string[]>()?
-            .Select(value => value.Trim())
-            .Where(value => value.Length > 0)
-            .ToArray() ?? Array.Empty<string>();
+        var addressLines = NormalizeList(
+            configuration.GetSection("Legal:AddressLines").Get<string[]>() ?? Array.Empty<string>());
+        var phoneNumbers = ReadList("Legal:PhoneNumbers");
+        var legacyPhone = Normalize(configuration["Legal:Phone"]);
+        if (phoneNumbers.Length == 0 && legacyPhone is not null)
+        {
+            phoneNumbers = [legacyPhone];
+        }
         var version = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-            .InformationalVersion.Split('+')[0] ?? "1.0.0";
+            .InformationalVersion.Split('+')[0] ?? "0.9.0-rc.1";
 
         return Ok(new ProductInfoResponse(
             configuration["Product:Name"] ?? "HimiFlow Einsparungsdatenbank",
@@ -41,16 +43,31 @@ public sealed class PublicInfoController : ControllerBase
                 !string.IsNullOrWhiteSpace(email) &&
                 addressLines.Length > 0,
                 providerName,
+                Normalize(configuration["Legal:ShortName"]),
                 Normalize(configuration["Legal:LegalForm"]),
                 addressLines,
                 email,
-                Normalize(configuration["Legal:Phone"]),
+                legacyPhone,
+                phoneNumbers,
+                ReadList("Legal:RepresentedBy"),
+                ReadList("Legal:ContentResponsible"),
+                Normalize(configuration["Legal:ContentResponsibleRole"]),
+                ReadList("Legal:ContentResponsibleAddressLines"),
                 Normalize(configuration["Legal:Website"]),
                 Normalize(configuration["Legal:RegisterCourt"]),
                 Normalize(configuration["Legal:RegisterNumber"]),
                 Normalize(configuration["Legal:VatId"]),
                 Normalize(configuration["Legal:PrivacyContact"]))));
     }
+
+    private string[] ReadList(string key) =>
+        NormalizeList(configuration.GetSection(key).Get<string[]>() ?? Array.Empty<string>());
+
+    private static string[] NormalizeList(IEnumerable<string> values) =>
+        values.Select(value => value?.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value!)
+            .ToArray();
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

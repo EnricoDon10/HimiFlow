@@ -93,12 +93,22 @@ public sealed class SqliteBackupService
             return Array.Empty<BackupFile>();
         }
 
-        return Directory.EnumerateFiles(directory, "*.db", SearchOption.TopDirectoryOnly)
-            .Select(path => new FileInfo(path))
-            .Where(info => info.Length > 0)
-            .OrderByDescending(info => info.LastWriteTimeUtc)
-            .Select(info => new BackupFile(info.Name, info.Length, info.LastWriteTimeUtc, info.FullName))
-            .ToArray();
+        try
+        {
+            return Directory.EnumerateFiles(directory, "*.db", SearchOption.TopDirectoryOnly)
+                .Select(path => new FileInfo(path))
+                .Where(info => info.Length > 0)
+                .Where(IsReadableSqliteFile)
+                .OrderByDescending(info => info.LastWriteTimeUtc)
+                .Select(info => new BackupFile(info.Name, info.Length, info.LastWriteTimeUtc, info.FullName))
+                .ToArray();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new IOException(
+                $"Das Backup-Verzeichnis '{directory}' kann nicht gelesen werden.",
+                exception);
+        }
     }
 
     public async Task<BackupValidationResult> ValidateAsync(
@@ -202,6 +212,21 @@ public sealed class SqliteBackupService
     }
 
     private static string EscapeSqliteLiteral(string value) => value.Replace("'", "''", StringComparison.Ordinal);
+
+    private static bool IsReadableSqliteFile(FileInfo file)
+    {
+        try
+        {
+            Span<byte> header = stackalloc byte[16];
+            using var stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            return stream.Read(header) == header.Length &&
+                   header.SequenceEqual("SQLite format 3\0"u8);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
     private void EnsureSqliteProvider()
     {

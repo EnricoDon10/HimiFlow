@@ -11,7 +11,7 @@
 @if (successMessage()) { <section class="message success" role="status">{{ successMessage() }}</section> }
 
 @if (status(); as currentStatus) {
-  <section class="status-card" [class.warning]="currentStatus.isOverdue || currentStatus.isMissing">
+  <section class="status-card" [class.warning]="currentStatus.isOverdue || (currentStatus.isMissing && currentStatus.automaticEnabled)">
     <div>
       <p class="eyebrow">Backup-Status</p>
       <h2>{{ currentStatus.status }}</h2>

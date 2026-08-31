@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Version>1.0.0</Version>
+    <Version>0.9.0-rc.1</Version>
     <Product>HimiFlow Einsparungsdatenbank</Product>
-    <Company>ME Digitale GbR</Company>
-    <Authors>ME Digitale GbR</Authors>
-    <Copyright>Copyright © 2026 ME Digitale GbR</Copyright>
+    <Company>ME Digitale GbR Dirr &amp; Mancuso</Company>
+    <Authors>ME Digitale GbR Dirr &amp; Mancuso</Authors>
+    <Copyright>Copyright © 2026 ME Digitale GbR Dirr &amp; Mancuso</Copyright>
     <RepositoryUrl>https://github.com/EnricoDon10/HimiFlow</RepositoryUrl>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

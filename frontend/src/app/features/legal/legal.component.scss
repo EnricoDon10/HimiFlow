@@ -26,7 +26,8 @@ section p {
 }
 
 h1,
-h2 {
+h2,
+h3 {
   color: #1f1f1f;
 }
 
@@ -77,6 +78,20 @@ dt {
 }
 
 dd {
+  margin: 0;
+}
+
+ul {
+  margin-top: 0.5rem;
+  color: #525252;
+}
+
+.phone-link {
+  display: block;
+  width: fit-content;
+}
+
+.compact-line {
   margin: 0;
 }
 

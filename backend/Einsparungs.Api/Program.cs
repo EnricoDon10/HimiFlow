@@ -325,6 +325,7 @@ using (var scope = app.Services.CreateScope())
 
     if (migrateCommand || seedCommand)
     {
+        await DatabasePreflight.ValidateBeforeMigrationAsync(db);
         await db.Database.MigrateAsync();
         if (seedCommand)
         {

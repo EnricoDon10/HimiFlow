@@ -59,6 +59,84 @@ public sealed class DatabaseIndexMigrationTests
     }
 
     [TestMethod]
+    public async Task MigrationPreflight_SkipsWhenUserRolesTableDoesNotExist()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "CREATE TABLE Users (Id TEXT NOT NULL PRIMARY KEY);";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var db = new AppDbContext(options);
+
+        await DatabasePreflight.ValidateBeforeMigrationAsync(db);
+    }
+
+    [TestMethod]
+    public async Task MigrationPreflight_AllowsInitialCreateSchemaBeforeIdentityMigration()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var db = new AppDbContext(options);
+
+        await db.Database.MigrateAsync("20260701173459_InitialCreate");
+
+        // InitialCreate already has UserRoles, but Users still has only the
+        // legacy columns. The preflight must not materialize today's model.
+        await DatabasePreflight.ValidateBeforeMigrationAsync(db);
+        await db.Database.MigrateAsync();
+    }
+
+    [TestMethod]
+    public async Task MigrationPreflight_ReportsDuplicateOnLegacySchemaWithoutIdentityColumns()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                CREATE TABLE Users (Id TEXT NOT NULL PRIMARY KEY);
+                CREATE TABLE UserRoles (AppUserId TEXT NOT NULL, AppRoleId INTEGER NOT NULL);
+                INSERT INTO Users (Id) VALUES ('legacy-user-id');
+                INSERT INTO UserRoles (AppUserId, AppRoleId) VALUES ('legacy-user-id', 1), ('legacy-user-id', 2);
+                """;
+            await command.ExecuteNonQueryAsync();
+        }
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        await using var db = new AppDbContext(options);
+
+        InvalidOperationException? exception = null;
+        try
+        {
+            await DatabasePreflight.ValidateBeforeMigrationAsync(db);
+        }
+        catch (InvalidOperationException caught)
+        {
+            exception = caught;
+        }
+
+        Assert.IsNotNull(exception);
+        StringAssert.Contains(exception!.Message, "legacy-user-id");
+        StringAssert.Contains(exception.Message, "keine Daten gelöscht");
+        StringAssert.Contains(exception.Message, "manuell bereinigen");
+
+        await using var countCommand = connection.CreateCommand();
+        countCommand.CommandText = "SELECT COUNT(*) FROM UserRoles WHERE AppUserId = 'legacy-user-id';";
+        Assert.AreEqual(2L, (long)(await countCommand.ExecuteScalarAsync())!);
+    }
+
+    [TestMethod]
     public async Task MigrationPreflight_AbortsDuplicateRolesWithoutDeletingAssignments()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

@@ -26,6 +26,14 @@ test('SystemAdmin Erstlogin erzwingt Passwortwechsel und legt FachAdmin an', asy
   await page.getByRole('button', { name: 'Passwort speichern' }).click();
   await expect(page).toHaveURL(/admin\/users/);
 
+  await page.goto('/admin/backup-recovery');
+  await expect(page.getByRole('heading', { name: 'Datensicherung & Wiederherstellung' })).toBeVisible();
+  await expect(page.locator('.status-card')).toBeVisible();
+  await expect(page.locator('.status-card h2')).toHaveText(/^(MISSING|CURRENT|OVERDUE|DISABLED|EXTERNAL_PROVIDER)$/);
+  await expect(page.locator('.message.error')).toHaveCount(0);
+
+  await page.goto('/admin/users');
+
   await page.getByLabel('Benutzername').fill('e2e.fachadmin');
   await page.getByLabel('Anzeigename').fill('E2E FachAdmin');
   await page.locator('select[name="roleName"]').selectOption({ label: 'Fach-Admin / Führungskraft' });

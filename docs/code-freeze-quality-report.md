@@ -22,10 +22,10 @@ Die Local Edition ist für einen kontrollierten Pilot- und Abnahmelauf eingefror
 ## Freeze-Patch dieser Runde
 
 - **Unicode-Stammdaten:** Die Dublettenprüfung für Teams, Einspargründe und Produktgruppen vergleicht nach zentralem Trim, Unicode-Form-C-Normalisierung und invariantem Großschreiben in .NET. Damit hängt sie nicht mehr von `ToUpper()`/SQLite-Collation ab; die sichtbare Schreibweise bleibt unverändert. Die Fälle `Kompressionsartikel`, `Änderung`, `ÜBERNAHME`, Leerzeichen und deaktivierte Reaktivierung sind getestet.
-- **Ein-Rolle-Preflight:** Vor jeder Migration wird ein bestehender Rollendoppelbestand identifiziert. Das Upgrade bricht mit Benutzername, Anzeigename, ID und Rollenliste ab; es werden keine Daten gelöscht. Der Unique-Index `IX_UserRoles_AppUserId_Unique` bleibt die technische Durchsetzung.
+- **Schema-sicheres Ein-Rolle-Preflight:** Vor jeder Migration wird ein bestehender Rollendoppelbestand direkt über das historisch verfügbare `UserRoles`-Schema identifiziert. Der Check materialisiert nicht das aktuelle Identity-Modell, ergänzt Benutzername/Anzeigename nur bei sicher vorhandenen Spalten und meldet andernfalls mindestens die Benutzer-ID. Das Upgrade bricht verständlich ab; es werden keine Daten gelöscht. Der Unique-Index `IX_UserRoles_AppUserId_Unique` bleibt die technische Durchsetzung.
 - **npm/Version:** Nur die vier im Lockfile geprüften nativen Build-Scripts (`@parcel/watcher`, `esbuild`, `lmdb`, `msgpackr-extract`) sind versionsgenau per `allowScripts` freigegeben. Der Pilotstand lautet konsistent `0.9.0-rc.1`; `1.0.0` bleibt der späteren Kundenabnahme vorbehalten.
 - **Anbieterangaben:** `/api/public/product-info` und `/legal` liefern nun konfigurationsgetrieben ME Digitale GbR Dirr & Mancuso, Kurzform, Anschrift, beide Gesellschafter, beide `tel:`-Telefonnummern, E-Mail und Inhaltsverantwortliche. Eine leere USt-ID wird vollständig ausgeblendet; Register-, Website- und Datenschutzwerte bleiben leer, solange sie nicht rechtlich freigegeben konfiguriert sind.
-- **VIACTIV-Pilottest:** Die signierte Testlizenz `TEST-VIACTIV-2026-0908-01` (31.08.2026–08.09.2026, Grace bis 09.09.2026 UTC, Limit 50, `viactiv-test-01`) wurde lokal erzeugt und durch das Erzeugungsskript verifiziert. Schlüsseldateien liegen ausschließlich unter `.local-secrets/himiflow-test-licensing/`; weder vollständiger Lizenzschlüssel noch Private Key stehen in diesem Bericht oder Git. Die Installation erfolgt bei laufender lokaler Instanz über den regulären Lizenzdialog.
+- **VIACTIV-Pilottest:** Die signierte Testlizenz `TEST-VIACTIV-2026-0908-01` wurde über den regulären SystemAdmin-Lizenzdialog installiert und als `ACTIVE` geprüft (Kunde `VIACTIV Krankenkasse`, `viactiv-test-01`, gültig bis 08.09.2026 23:59:59 UTC, Grace bis 09.09.2026 23:59:59 UTC, MaxUsers 50, Feature `core`). Schlüsseldateien liegen ausschließlich unter `.local-secrets/himiflow-test-licensing/`; weder vollständiger Lizenzschlüssel noch Private Key stehen in diesem Bericht oder Git.
 
 ## Historische SQLite-Migrationswarnung
 
@@ -35,6 +35,8 @@ Die Warnungen `SqlOperation` während des Rebuilds von `Users` und `PRAGMA forei
 
 Der Requestpfad wurde vollständig verfolgt. Ein nicht vorhandenes oder leeres Backup-Verzeichnis ist ein gültiger Zustand und liefert weiterhin ein Statusobjekt (kein Fehler). Der konkrete Fehlerpfad lag bei nicht lesbaren/ungültig konfigurierten Verzeichnissen: `Directory.EnumerateFiles` propagierte die Ausnahme, während das Frontend nur den pauschalen Fallbacktext zeigte. Der Status-Endpunkt gibt solche Betriebsfehler jetzt als `503 ProblemDetails` mit verständlichem Detail zurück; normale Zustände (`MISSING`, `CURRENT`, `OVERDUE`, `DISABLED`, externer Provider) bleiben `200 OK`. Die Oberfläche räumt beim erfolgreichen Laden alte Fehler auf, unterstützt Retry und lädt nach manueller Erstellung erneut. Dafür sind Evaluator-, HTTP-Integrations- und Frontend-Komponententests ergänzt.
 
+Der bestehende SystemAdmin-Playwright-Flow ruft zusätzlich `/admin/backup-recovery` auf und prüft Überschrift, Statuskarte, einen zulässigen Betriebsstatus (`MISSING`, `CURRENT`, `OVERDUE`, `DISABLED` oder `EXTERNAL_PROVIDER`) sowie das Ausbleiben einer sichtbaren roten Fehlermeldung. Ein Restore wird im Browser weiterhin nicht ausgeführt.
+
 ## Verifizierte Gates
 
 Die folgenden Ergebnisse wurden lokal mit .NET SDK 10.0.400 beziehungsweise npm 11.16.0 ermittelt:
@@ -42,10 +44,10 @@ Die folgenden Ergebnisse wurden lokal mit .NET SDK 10.0.400 beziehungsweise npm 
 | Gate | Ergebnis |
 | --- | --- |
 | Backend Release-Build | bestanden, 0 Warnungen, 0 Fehler |
-| Backendtests | 123 bestanden, 0 fehlgeschlagen, 0 übersprungen |
+| Backendtests | 126 bestanden, 0 fehlgeschlagen, 0 übersprungen |
 | Frontendtests | 20 bestanden |
 | Frontend Production-Build | bestanden, ohne Budgetwarnung |
-| Kritische Playwright-Flows | 3/3 bestanden (Erstlogin/Passwortwechsel, FachAdmin-Fachfluss, Lizenz/Logout) |
+| Kritische Playwright-Flows | 3/3 bestanden (Erstlogin/Passwortwechsel mit Backup-Smoke, FachAdmin-Fachfluss, Lizenz/Logout) |
 | `npm audit --audit-level=high` | 0 Schwachstellen |
 | Secret-Mustersuche | sauber |
 | Gitleaks lokal | nicht installiert; Gitleaks bleibt im GitHub-Workflow aktiviert |
@@ -53,7 +55,7 @@ Die folgenden Ergebnisse wurden lokal mit .NET SDK 10.0.400 beziehungsweise npm 
 | EF-Modellprüfung SQL Server | keine ausstehenden Modelländerungen |
 | Idempotentes SQL-Server-Skript | erfolgreich erzeugt |
 | Restore-Skript-Integrationstest | bestanden: normal, fehlendes Ziel, beschädigte Quelle mit Rollback-Schutz |
-| Fresh SQLite / Ein-Rollen-Preflight / Unicode | bestanden |
+| Fresh SQLite / historische Preflight-Schemata / Ein-Rollen-Preflight / Unicode | bestanden |
 | npm `ci` / Script-Policy | bestanden, keine unbewerteten Install-Scripts, 0 Schwachstellen |
 | Öffentliche Anbieterinformationen | bestanden: Felder, Telefonnummern, Verantwortliche, leere USt-ID ausgeblendet |
 
